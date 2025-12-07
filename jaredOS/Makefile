@@ -8,7 +8,7 @@ AS = nasm
 LD = i686-elf-ld
 
 # Flags
-CFLAGS = -ffreestanding -O2 -Wall -Wextra -fno-exceptions -fno-stack-protector \
+CFLAGS = -std=gnu99 -ffreestanding -O2 -Wall -Wextra -fno-exceptions -fno-stack-protector \
          -nostdlib -Ikernel -Iinclude
 ASFLAGS_BIN = -f bin
 ASFLAGS_ELF = -f elf32
