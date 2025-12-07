@@ -41,6 +41,7 @@ KERNEL_C_SRCS = $(KERNEL_DIR)/main.c \
                 $(KERNEL_DIR)/lib/stdlib.c \
                 $(KERNEL_DIR)/lib/printf.c \
                 $(KERNEL_DIR)/fs/simplefs.c \
+                $(KERNEL_DIR)/gui/window.c \
                 $(KERNEL_DIR)/shell/shell.c \
                 $(KERNEL_DIR)/shell/commands.c \
                 $(KERNEL_DIR)/shell/calc.c \

@@ -10,6 +10,7 @@
 static fs_superblock_t superblock;
 static fs_file_t file_table[FS_MAX_FILES];
 static bool fs_initialized = false;
+static char current_dir[FS_MAX_PATH] = "";  /* Current working directory */
 
 /* Sector buffer */
 static uint8_t sector_buffer[FS_SECTOR_SIZE];
@@ -28,8 +29,8 @@ static bool fs_load_metadata(void) {
         return false;
     }
     
-    /* Read file table (16 files * 64 bytes = 1024 bytes = 2 sectors) */
-    if (!ata_read_sectors(FS_FILETABLE_SEC, 2, file_table)) {
+    /* Read file table (32 files * 96 bytes = 3072 bytes = 6 sectors) */
+    if (!ata_read_sectors(FS_FILETABLE_SEC, 6, file_table)) {
         return false;
     }
     
@@ -45,8 +46,8 @@ static bool fs_save_metadata(void) {
         return false;
     }
     
-    /* Write file table */
-    if (!ata_write_sectors(FS_FILETABLE_SEC, 2, file_table)) {
+    /* Write file table (6 sectors) */
+    if (!ata_write_sectors(FS_FILETABLE_SEC, 6, file_table)) {
         return false;
     }
     
@@ -84,12 +85,15 @@ bool fs_format(void) {
     /* Initialize superblock */
     memset(&superblock, 0, sizeof(superblock));
     superblock.magic = FS_MAGIC;
-    superblock.version = 1;
+    superblock.version = 2;  /* v2 with directories */
     superblock.file_count = 0;
     superblock.next_data_sector = FS_DATA_START_SEC;
     
     /* Clear file table */
     memset(file_table, 0, sizeof(file_table));
+    
+    /* Reset current directory */
+    current_dir[0] = '\0';
     
     /* Write metadata */
     if (!fs_save_metadata()) {
@@ -98,12 +102,25 @@ bool fs_format(void) {
     
     fs_initialized = true;
     
-    /* Create example Gwango files */
+    /* Create system directories */
+    fs_mkdir("sys");
+    fs_mkdir("bin");
+    fs_mkdir("home");
+    
+    /* Create boot script */
+    static const char boot_gw[] = 
+        "; jaredOS Boot Script\n"
+        "; This runs at startup\n"
+        "@vga.print \"Boot script executed!\"\n"
+        "@vga.newline\n";
+    fs_write("sys/boot.gw", boot_gw, sizeof(boot_gw) - 1);
+    
+    /* Create example Gwango files in /bin */
     static const char hello_gw[] = 
         "; Hello World - Your first Gwango program!\n"
         "@vga.print \"Hello from Gwango!\"\n"
         "@vga.newline\n";
-    fs_write("hello.gw", hello_gw, sizeof(hello_gw) - 1);
+    fs_write("bin/hello.gw", hello_gw, sizeof(hello_gw) - 1);
     
     static const char math_gw[] = 
         "; Math Example - Variables and arithmetic\n"
@@ -113,15 +130,16 @@ bool fs_format(void) {
         "@vga.print \"Sum: \"\n"
         "@vga.print sum\n"
         "@vga.newline\n";
-    fs_write("math.gw", math_gw, sizeof(math_gw) - 1);
+    fs_write("bin/math.gw", math_gw, sizeof(math_gw) - 1);
     
     static const char loop_gw[] = 
         "; Loop Example\n"
-        "loop i = 1 to 3\n"
+        "loop i = 1 to 5\n"
         "    @vga.print i\n"
+        "    @vga.print \" \"\n"
         "end\n"
         "@vga.newline\n";
-    fs_write("loop.gw", loop_gw, sizeof(loop_gw) - 1);
+    fs_write("bin/loop.gw", loop_gw, sizeof(loop_gw) - 1);
     
     static const char input_gw[] = 
         "; Input Example - Press a key\n"
@@ -130,7 +148,7 @@ bool fs_format(void) {
         "@vga.print \"You pressed ASCII: \"\n"
         "@vga.print k\n"
         "@vga.newline\n";
-    fs_write("input.gw", input_gw, sizeof(input_gw) - 1);
+    fs_write("bin/input.gw", input_gw, sizeof(input_gw) - 1);
     
     return true;
 }
@@ -294,6 +312,134 @@ bool fs_delete(const char *name) {
             file_table[i].used = 0;
             superblock.file_count--;
             return fs_save_metadata();
+        }
+    }
+    
+    return false;
+}
+
+/**
+ * Create directory
+ */
+bool fs_mkdir(const char *name) {
+    if (!fs_initialized) return false;
+    if (strlen(name) > FS_MAX_FILENAME) return false;
+    
+    /* Check if already exists */
+    for (int i = 0; i < FS_MAX_FILES; i++) {
+        if (file_table[i].used && strcmp(file_table[i].name, name) == 0) {
+            return false;  /* Already exists */
+        }
+    }
+    
+    /* Find free slot */
+    int slot = -1;
+    for (int i = 0; i < FS_MAX_FILES; i++) {
+        if (!file_table[i].used) {
+            slot = i;
+            break;
+        }
+    }
+    
+    if (slot < 0) return false;
+    
+    /* Create directory entry */
+    strcpy(file_table[slot].name, name);
+    file_table[slot].size = 0;
+    file_table[slot].start_sector = 0;
+    file_table[slot].used = 1;
+    file_table[slot].is_dir = 1;
+    superblock.file_count++;
+    
+    return fs_save_metadata();
+}
+
+/**
+ * List files in a specific directory
+ */
+int fs_list_dir(const char *dir, fs_file_t *files, int max_files) {
+    if (!fs_initialized) return 0;
+    
+    int dir_len = dir ? strlen(dir) : 0;
+    int count = 0;
+    
+    for (int i = 0; i < FS_MAX_FILES && count < max_files; i++) {
+        if (!file_table[i].used) continue;
+        
+        const char *name = file_table[i].name;
+        
+        if (dir_len == 0) {
+            /* Root: show files without '/' or just the first component of paths */
+            if (strchr(name, '/') == NULL) {
+                if (files) files[count] = file_table[i];
+                count++;
+            }
+        } else {
+            /* Check if file is in this directory */
+            if (strncmp(name, dir, dir_len) == 0 && name[dir_len] == '/') {
+                /* Check if it's a direct child (no more slashes) */
+                const char *rest = name + dir_len + 1;
+                if (strchr(rest, '/') == NULL) {
+                    if (files) files[count] = file_table[i];
+                    count++;
+                }
+            }
+        }
+    }
+    return count;
+}
+
+/**
+ * Get current working directory
+ */
+const char* fs_getcwd(void) {
+    return current_dir[0] ? current_dir : "/";
+}
+
+/**
+ * Change current directory
+ */
+bool fs_chdir(const char *path) {
+    if (!fs_initialized) return false;
+    
+    /* Handle root */
+    if (path[0] == '/' && path[1] == '\0') {
+        current_dir[0] = '\0';
+        return true;
+    }
+    
+    /* Handle ".." */
+    if (strcmp(path, "..") == 0) {
+        char *last_slash = strrchr(current_dir, '/');
+        if (last_slash) {
+            *last_slash = '\0';
+        } else {
+            current_dir[0] = '\0';
+        }
+        return true;
+    }
+    
+    /* Build new path */
+    char new_path[FS_MAX_PATH];
+    if (path[0] == '/') {
+        /* Absolute path */
+        strncpy(new_path, path + 1, FS_MAX_PATH - 1);  /* Skip leading / */
+    } else if (current_dir[0]) {
+        /* Relative to current */
+        strcpy(new_path, current_dir);
+        strcat(new_path, "/");
+        strcat(new_path, path);
+    } else {
+        strncpy(new_path, path, FS_MAX_PATH - 1);
+    }
+    new_path[FS_MAX_PATH - 1] = '\0';
+    
+    /* Check if directory exists */
+    for (int i = 0; i < FS_MAX_FILES; i++) {
+        if (file_table[i].used && file_table[i].is_dir &&
+            strcmp(file_table[i].name, new_path) == 0) {
+            strcpy(current_dir, new_path);
+            return true;
         }
     }
     

@@ -14,6 +14,7 @@
 #include "../lib/printf.h"
 #include "../lib/string.h"
 #include "../lib/stdlib.h"
+#include "../gui/window.h"
 
 /* Command structure */
 typedef struct {
@@ -37,6 +38,10 @@ static command_t commands[] = {
     {"ls",     "List files",               cmd_ls},
     {"cat",    "Print file contents",      cmd_cat},
     {"write",  "Write text to file",       cmd_write},
+    {"cd",     "Change directory",         cmd_cd},
+    {"pwd",    "Print working directory",  cmd_pwd},
+    {"mkdir",  "Create directory",         cmd_mkdir},
+    {"gui",    "Tiled window mode",        cmd_gui},
     {"format", "Format disk",              cmd_format},
     {"reboot", "Reboot the system",        cmd_reboot},
     {NULL, NULL, NULL}
@@ -447,4 +452,183 @@ void cmd_gwan(int argc, char *argv[]) {
         /* Run file */
         gwango_run_file(argv[1]);
     }
+}
+
+/**
+ * Change directory
+ */
+void cmd_cd(int argc, char *argv[]) {
+    if (!fs_ready()) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        kprintf("Filesystem not ready.\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        return;
+    }
+    
+    if (argc < 2) {
+        /* Go to root */
+        fs_chdir("/");
+        return;
+    }
+    
+    if (!fs_chdir(argv[1])) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        kprintf("No such directory: %s\n", argv[1]);
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    }
+}
+
+/**
+ * Print working directory
+ */
+void cmd_pwd(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
+    
+    if (!fs_ready()) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        kprintf("Filesystem not ready.\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        return;
+    }
+    
+    kprintf("%s\n", fs_getcwd());
+}
+
+/**
+ * Create directory
+ */
+void cmd_mkdir(int argc, char *argv[]) {
+    if (argc < 2) {
+        kprintf("Usage: mkdir <name>\n");
+        return;
+    }
+    
+    if (!fs_ready()) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        kprintf("Filesystem not ready.\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        return;
+    }
+    
+    if (fs_mkdir(argv[1])) {
+        kprintf("Created directory: %s\n", argv[1]);
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        kprintf("Failed to create directory.\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    }
+}
+/**
+ * GUI - Tiled window mode with integrated shell
+ */
+void cmd_gui(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
+    
+    extern char keyboard_getchar(void);
+    extern void shell_parse_line(const char *line, int *argc_out, char **argv_out);
+    
+    /* Command line buffer */
+    static char cmd_buffer[256];
+    int cmd_pos = 0;
+    
+    /* Initialize window manager */
+    wm_init();
+    
+    /* Write welcome message */
+    wm_puts("jaredOS GUI Shell\n");
+    wm_puts("------------------\n");
+    wm_puts("ESC=exit Tab=switch\n\n");
+    wm_puts("jaredOS> ");
+    
+    /* Switch to status window and write info */
+    wm_next_window();
+    wm_puts("System Status\n");
+    wm_puts("-------------\n");
+    wm_puts("Mode: GUI\n");
+    wm_puts("FS: ");
+    if (fs_ready()) {
+        wm_puts("Ready\n");
+        wm_puts("Dir: ");
+        wm_puts(fs_getcwd());
+        wm_puts("\n");
+    } else {
+        wm_puts("N/A\n");
+    }
+    
+    /* Switch back to terminal */
+    wm_next_window();
+    wm_draw();
+    
+    /* Shell event loop */
+    while (1) {
+        char c = keyboard_getchar();
+        
+        if (c == 27) {  /* ESC key */
+            break;
+        } else if (c == '\t') {  /* Tab - switch windows */
+            wm_next_window();
+            wm_draw();
+        } else if (c == '\b') {  /* Backspace */
+            if (cmd_pos > 0) {
+                cmd_pos--;
+                cmd_buffer[cmd_pos] = '\0';
+                wm_putchar('\b');
+                wm_putchar(' ');
+                wm_putchar('\b');
+                wm_draw();
+            }
+        } else if (c == '\n') {  /* Enter - execute command */
+            cmd_buffer[cmd_pos] = '\0';
+            wm_putchar('\n');
+            
+            if (cmd_pos > 0) {
+                /* Parse and execute command */
+                static char *cmd_argv[16];
+                int cmd_argc = 0;
+                
+                /* Simple tokenize */
+                char *p = cmd_buffer;
+                while (*p && cmd_argc < 16) {
+                    while (*p == ' ') p++;
+                    if (!*p) break;
+                    cmd_argv[cmd_argc++] = p;
+                    while (*p && *p != ' ') p++;
+                    if (*p) *p++ = '\0';
+                }
+                
+                if (cmd_argc > 0) {
+                    /* Check for exit/quit */
+                    if (strcmp(cmd_argv[0], "exit") == 0 || 
+                        strcmp(cmd_argv[0], "quit") == 0) {
+                        break;
+                    }
+                    
+                    /* Execute command (output goes to normal VGA for now) */
+                    if (!commands_execute(cmd_argc, cmd_argv)) {
+                        wm_puts("Unknown: ");
+                        wm_puts(cmd_argv[0]);
+                        wm_putchar('\n');
+                    }
+                    wm_draw();
+                }
+            }
+            
+            /* New prompt */
+            wm_puts("jaredOS> ");
+            wm_draw();
+            cmd_pos = 0;
+            cmd_buffer[0] = '\0';
+        } else if (c >= 32 && c < 127 && cmd_pos < 255) {
+            cmd_buffer[cmd_pos++] = c;
+            cmd_buffer[cmd_pos] = '\0';
+            wm_putchar(c);
+            wm_draw();
+        }
+    }
+    
+    /* Restore normal VGA mode */
+    vga_clear();
+    kprintf("Exited GUI mode.\n");
 }

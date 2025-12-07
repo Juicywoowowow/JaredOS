@@ -26,5 +26,9 @@ void cmd_cat(int argc, char *argv[]);
 void cmd_write(int argc, char *argv[]);
 void cmd_format(int argc, char *argv[]);
 void cmd_gwan(int argc, char *argv[]);
+void cmd_cd(int argc, char *argv[]);
+void cmd_pwd(int argc, char *argv[]);
+void cmd_mkdir(int argc, char *argv[]);
+void cmd_gui(int argc, char *argv[]);
 
 #endif /* COMMANDS_H */
