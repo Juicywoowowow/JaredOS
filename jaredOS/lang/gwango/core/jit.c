@@ -70,45 +70,55 @@ static int alloc_var(const char *name, int len) {
 }
 
 /* Kernel call handlers (C functions that JIT code calls) */
+/* Must use 'used' and 'noinline' to prevent optimization since we only take addresses */
+__attribute__((used, noinline))
 void kcall_vga_print_num(int n) {
     kprintf("%d", n);
 }
 
+__attribute__((used, noinline))
 void kcall_vga_print_str(const char *s, int len) {
     for (int i = 0; i < len; i++) {
         vga_putchar(s[i]);
     }
 }
 
+__attribute__((used, noinline))
 void kcall_vga_clear(void) {
     vga_clear();
 }
 
+__attribute__((used, noinline))
 void kcall_vga_newline(void) {
     kprintf("\n");
 }
 
 /* @kb module */
+__attribute__((used, noinline))
 int kcall_kb_getchar(void) {
     return (int)keyboard_getchar();
 }
 
+__attribute__((used, noinline))
 int kcall_kb_haskey(void) {
     return keyboard_has_key() ? 1 : 0;
 }
 
 /* @sys module */
+__attribute__((used, noinline))
 int kcall_sys_time(void) {
     extern uint32_t timer_get_ticks(void);
     return (int)timer_get_ticks();
 }
 
+__attribute__((used, noinline))
 void kcall_sys_sleep(int ticks) {
     extern uint32_t timer_get_ticks(void);
     uint32_t start = timer_get_ticks();
     while (timer_get_ticks() - start < (uint32_t)ticks);
 }
 
+__attribute__((used, noinline))
 void kcall_sys_reboot(void) {
     /* Keyboard controller reset */
     uint8_t good = 0x02;
@@ -118,10 +128,12 @@ void kcall_sys_reboot(void) {
 }
 
 /* @mem module */
+__attribute__((used, noinline))
 int kcall_mem_peek(int addr) {
     return *(uint8_t*)(uint32_t)addr;
 }
 
+__attribute__((used, noinline))
 void kcall_mem_poke(int addr, int val) {
     *(uint8_t*)(uint32_t)addr = (uint8_t)val;
 }
@@ -221,8 +233,60 @@ static void compile_expr(ast_node_t *node) {
             emit_byte(0xF7);
             emit_byte(0xD8);
             break;
+        
+        /* Handle kernel calls that return values */
+        case NODE_KCALL: {
+            const char *mod = node->data.call.module;
+            int mod_len = node->data.call.module_len;
+            const char *fn = node->data.call.name;
+            int fn_len = node->data.call.name_len;
+            
+            /* @kb module - functions return int */
+            if (mod_len == 2 && mod[0] == 'k' && mod[1] == 'b') {
+                if (fn_len == 7 && strncmp(fn, "getchar", 7) == 0) {
+                    emit_byte(0xB8);
+                    emit_dword((uint32_t)kcall_kb_getchar);
+                    emit_byte(0xFF);
+                    emit_byte(0xD0);  /* Result in EAX */
+                } else if (fn_len == 6 && strncmp(fn, "haskey", 6) == 0) {
+                    emit_byte(0xB8);
+                    emit_dword((uint32_t)kcall_kb_haskey);
+                    emit_byte(0xFF);
+                    emit_byte(0xD0);
+                }
+            }
+            /* @sys module */
+            else if (mod_len == 3 && mod[0] == 's' && mod[1] == 'y' && mod[2] == 's') {
+                if (fn_len == 4 && strncmp(fn, "time", 4) == 0) {
+                    emit_byte(0xB8);
+                    emit_dword((uint32_t)kcall_sys_time);
+                    emit_byte(0xFF);
+                    emit_byte(0xD0);
+                }
+            }
+            /* @mem module */
+            else if (mod_len == 3 && mod[0] == 'm' && mod[1] == 'e' && mod[2] == 'm') {
+                if (fn_len == 4 && strncmp(fn, "peek", 4) == 0) {
+                    if (node->data.call.arg_count > 0) {
+                        compile_expr(node->data.call.args[0]);
+                        emit_byte(0x50);
+                        emit_byte(0xB8);
+                        emit_dword((uint32_t)kcall_mem_peek);
+                        emit_byte(0xFF);
+                        emit_byte(0xD0);
+                        emit_byte(0x83);
+                        emit_byte(0xC4);
+                        emit_byte(0x04);
+                    }
+                }
+            }
+            break;
+        }
             
         default:
+            /* Unknown node - emit mov eax, 0 as fallback */
+            emit_byte(0xB8);
+            emit_dword(0);
             break;
     }
 }

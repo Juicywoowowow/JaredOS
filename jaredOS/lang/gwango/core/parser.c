@@ -6,9 +6,10 @@
 #include "../../../kernel/lib/string.h"
 
 /* Max nodes/params */
-#define MAX_STMTS 256
+#define MAX_STMTS 64
 #define MAX_ARGS 16
 #define MAX_PARAMS 8
+#define MAX_STMT_ARRAYS 16
 
 /* Node allocation (simple bump allocator) */
 static ast_node_t node_pool[512];
@@ -21,8 +22,16 @@ static ast_node_t* alloc_node(void) {
     return n;
 }
 
-/* Temporary storage for arrays */
-static ast_node_t* stmt_buf[MAX_STMTS];
+/* Statement array pool - each block gets its own array */
+static ast_node_t* stmt_pool[MAX_STMT_ARRAYS][MAX_STMTS];
+static int stmt_pool_idx = 0;
+
+static ast_node_t** alloc_stmt_array(void) {
+    if (stmt_pool_idx >= MAX_STMT_ARRAYS) return NULL;
+    return stmt_pool[stmt_pool_idx++];
+}
+
+/* Temporary storage for args and params */
 static ast_node_t* arg_buf[MAX_ARGS];
 static const char* param_names[MAX_PARAMS];
 static int param_lens[MAX_PARAMS];
@@ -271,13 +280,15 @@ static ast_node_t* parse_if(parser_t *p) {
     node->type = NODE_IF;
     node->data.if_stmt.cond = parse_expression(p);
     
-    node->data.if_stmt.then_count = parse_block(p, stmt_buf);
-    node->data.if_stmt.then_body = (ast_node_t**)stmt_buf;
+    ast_node_t **then_stmts = alloc_stmt_array();
+    node->data.if_stmt.then_count = parse_block(p, then_stmts);
+    node->data.if_stmt.then_body = then_stmts;
     
     if (match(p, TOK_ELSE)) {
         skip_newlines(p);
-        node->data.if_stmt.else_count = parse_block(p, stmt_buf);
-        node->data.if_stmt.else_body = (ast_node_t**)stmt_buf;
+        ast_node_t **else_stmts = alloc_stmt_array();
+        node->data.if_stmt.else_count = parse_block(p, else_stmts);
+        node->data.if_stmt.else_body = else_stmts;
     }
     
     expect(p, TOK_END, "Expected 'end'");
@@ -299,8 +310,9 @@ static ast_node_t* parse_loop(parser_t *p) {
     expect(p, TOK_TO, "Expected 'to'");
     node->data.loop.end = parse_expression(p);
     
-    node->data.loop.body_count = parse_block(p, stmt_buf);
-    node->data.loop.body = (ast_node_t**)stmt_buf;
+    ast_node_t **loop_stmts = alloc_stmt_array();
+    node->data.loop.body_count = parse_block(p, loop_stmts);
+    node->data.loop.body = loop_stmts;
     
     expect(p, TOK_END, "Expected 'end'");
     return node;
@@ -332,8 +344,9 @@ static ast_node_t* parse_fn(parser_t *p) {
     node->data.fn_decl.param_lens = param_lens;
     node->data.fn_decl.param_count = param_count;
     
-    node->data.fn_decl.body_count = parse_block(p, stmt_buf);
-    node->data.fn_decl.body = (ast_node_t**)stmt_buf;
+    ast_node_t **fn_stmts = alloc_stmt_array();
+    node->data.fn_decl.body_count = parse_block(p, fn_stmts);
+    node->data.fn_decl.body = fn_stmts;
     
     expect(p, TOK_END, "Expected 'end'");
     return node;
@@ -369,6 +382,7 @@ void parser_init(parser_t *p, const char *source) {
     p->had_error = false;
     p->error_msg = NULL;
     node_idx = 0;
+    stmt_pool_idx = 0;
     advance(p);
 }
 
@@ -377,16 +391,17 @@ ast_node_t* parser_parse(parser_t *p) {
     ast_node_t *program = alloc_node();
     program->type = NODE_PROGRAM;
     
+    ast_node_t **prog_stmts = alloc_stmt_array();
     int count = 0;
     skip_newlines(p);
     while (!check(p, TOK_EOF) && count < MAX_STMTS) {
         ast_node_t *stmt = parse_statement(p);
-        if (stmt) stmt_buf[count++] = stmt;
+        if (stmt) prog_stmts[count++] = stmt;
         skip_newlines(p);
         if (p->had_error) break;
     }
     
-    program->data.program.stmts = stmt_buf;
+    program->data.program.stmts = prog_stmts;
     program->data.program.stmt_count = count;
     return program;
 }

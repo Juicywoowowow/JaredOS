@@ -11,6 +11,12 @@
 #define VGA_CTRL_REG 0x3D4
 #define VGA_DATA_REG 0x3D5
 
+/* Scrollback buffer - stores all history */
+static uint16_t scrollback[VGA_SCROLLBACK_LINES][VGA_WIDTH];
+static int buffer_line = 0;      /* Current line in buffer (where new text goes) */
+static int view_offset = 0;      /* How many lines we've scrolled up (0 = at bottom) */
+static int total_lines = 0;      /* Total lines written so far */
+
 /* Current state */
 static uint16_t *vga_buffer = (uint16_t*)VGA_MEMORY;
 static int cursor_x = 0;
@@ -36,20 +42,36 @@ static void update_cursor(void) {
 }
 
 /**
- * Scroll screen up by one line
+ * Refresh VGA from scrollback buffer
  */
-static void scroll(void) {
-    /* Move all lines up */
-    for (int i = 0; i < (VGA_HEIGHT - 1) * VGA_WIDTH; i++) {
-        vga_buffer[i] = vga_buffer[i + VGA_WIDTH];
+static void refresh_display(void) {
+    int view_start = buffer_line - VGA_HEIGHT - view_offset + 1;
+    if (view_start < 0) view_start = 0;
+    
+    for (int row = 0; row < VGA_HEIGHT; row++) {
+        int buf_line = (view_start + row) % VGA_SCROLLBACK_LINES;
+        for (int col = 0; col < VGA_WIDTH; col++) {
+            vga_buffer[row * VGA_WIDTH + col] = scrollback[buf_line][col];
+        }
     }
+    update_cursor();
+}
 
-    /* Clear last line */
+/**
+ * Scroll buffer up by one line (new line added)
+ */
+static void scroll_buffer(void) {
+    /* Move to next line in circular buffer */
+    buffer_line = (buffer_line + 1) % VGA_SCROLLBACK_LINES;
+    total_lines++;
+    
+    /* Clear the new line */
     for (int i = 0; i < VGA_WIDTH; i++) {
-        vga_buffer[(VGA_HEIGHT - 1) * VGA_WIDTH + i] = vga_entry(' ', current_color);
+        scrollback[buffer_line][i] = vga_entry(' ', current_color);
     }
-
-    cursor_y = VGA_HEIGHT - 1;
+    
+    /* Reset view to bottom */
+    view_offset = 0;
 }
 
 /**
@@ -59,8 +81,20 @@ void vga_init(void) {
     vga_buffer = (uint16_t*)VGA_MEMORY;
     cursor_x = 0;
     cursor_y = 0;
+    buffer_line = VGA_HEIGHT - 1;  /* Start at bottom of initial screen */
+    view_offset = 0;
+    total_lines = VGA_HEIGHT;
     current_color = 0x0F;
+    
+    /* Clear scrollback buffer */
+    for (int line = 0; line < VGA_SCROLLBACK_LINES; line++) {
+        for (int col = 0; col < VGA_WIDTH; col++) {
+            scrollback[line][col] = vga_entry(' ', current_color);
+        }
+    }
+    
     vga_enable_cursor();
+    refresh_display();
 }
 
 /**
@@ -74,18 +108,29 @@ void vga_set_color(vga_color_t fg, vga_color_t bg) {
  * Clear screen
  */
 void vga_clear(void) {
-    for (int i = 0; i < VGA_WIDTH * VGA_HEIGHT; i++) {
-        vga_buffer[i] = vga_entry(' ', current_color);
+    /* Clear scrollback and VGA */
+    for (int line = 0; line < VGA_SCROLLBACK_LINES; line++) {
+        for (int col = 0; col < VGA_WIDTH; col++) {
+            scrollback[line][col] = vga_entry(' ', current_color);
+        }
     }
+    buffer_line = VGA_HEIGHT - 1;
+    view_offset = 0;
+    total_lines = VGA_HEIGHT;
     cursor_x = 0;
     cursor_y = 0;
-    update_cursor();
+    refresh_display();
 }
 
 /**
  * Put character at current position
  */
 void vga_putchar(char c) {
+    /* Auto-scroll to bottom on new output */
+    if (view_offset != 0) {
+        view_offset = 0;
+    }
+    
     if (c == '\n') {
         cursor_x = 0;
         cursor_y++;
@@ -96,10 +141,12 @@ void vga_putchar(char c) {
     } else if (c == '\b') {
         if (cursor_x > 0) {
             cursor_x--;
-            vga_buffer[cursor_y * VGA_WIDTH + cursor_x] = vga_entry(' ', current_color);
+            int line = (buffer_line - (VGA_HEIGHT - 1 - cursor_y) + VGA_SCROLLBACK_LINES) % VGA_SCROLLBACK_LINES;
+            scrollback[line][cursor_x] = vga_entry(' ', current_color);
         }
     } else {
-        vga_buffer[cursor_y * VGA_WIDTH + cursor_x] = vga_entry(c, current_color);
+        int line = (buffer_line - (VGA_HEIGHT - 1 - cursor_y) + VGA_SCROLLBACK_LINES) % VGA_SCROLLBACK_LINES;
+        scrollback[line][cursor_x] = vga_entry(c, current_color);
         cursor_x++;
     }
 
@@ -111,10 +158,11 @@ void vga_putchar(char c) {
 
     /* Handle scroll */
     if (cursor_y >= VGA_HEIGHT) {
-        scroll();
+        scroll_buffer();
+        cursor_y = VGA_HEIGHT - 1;
     }
 
-    update_cursor();
+    refresh_display();
 }
 
 /**
@@ -161,4 +209,36 @@ void vga_enable_cursor(void) {
 void vga_disable_cursor(void) {
     outb(VGA_CTRL_REG, 0x0A);
     outb(VGA_DATA_REG, 0x20);
+}
+
+/**
+ * Scroll view up (see older lines)
+ */
+void vga_scroll_up(void) {
+    int max_offset = total_lines - VGA_HEIGHT;
+    if (max_offset < 0) max_offset = 0;
+    if (view_offset < max_offset) {
+        view_offset++;
+        refresh_display();
+    }
+}
+
+/**
+ * Scroll view down (see newer lines)
+ */
+void vga_scroll_down(void) {
+    if (view_offset > 0) {
+        view_offset--;
+        refresh_display();
+    }
+}
+
+/**
+ * Scroll to bottom (current output)
+ */
+void vga_scroll_to_bottom(void) {
+    if (view_offset != 0) {
+        view_offset = 0;
+        refresh_display();
+    }
 }

@@ -30,6 +30,7 @@ typedef enum {
 /* VGA dimensions */
 #define VGA_WIDTH  80
 #define VGA_HEIGHT 25
+#define VGA_SCROLLBACK_LINES 100  /* Total lines in history buffer */
 
 /* Initialize VGA driver */
 void vga_init(void);
@@ -55,5 +56,10 @@ void vga_get_cursor(int *x, int *y);
 /* Enable/disable cursor */
 void vga_enable_cursor(void);
 void vga_disable_cursor(void);
+
+/* Scrollback control */
+void vga_scroll_up(void);    /* View older lines */
+void vga_scroll_down(void);  /* View newer lines */
+void vga_scroll_to_bottom(void);  /* Jump to current output */
 
 #endif /* VGA_H */

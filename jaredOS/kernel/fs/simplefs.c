@@ -116,10 +116,9 @@ bool fs_format(void) {
     fs_write("math.gw", math_gw, sizeof(math_gw) - 1);
     
     static const char loop_gw[] = 
-        "; Loop Example - Counting from 1 to 10\n"
-        "loop i = 1 to 10\n"
+        "; Loop Example\n"
+        "loop i = 1 to 3\n"
         "    @vga.print i\n"
-        "    @vga.print \" \"\n"
         "end\n"
         "@vga.newline\n";
     fs_write("loop.gw", loop_gw, sizeof(loop_gw) - 1);

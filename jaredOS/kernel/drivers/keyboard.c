@@ -3,6 +3,7 @@
  */
 
 #include "keyboard.h"
+#include "vga.h"
 #include "../core/irq.h"
 #include "../types.h"
 
@@ -20,6 +21,7 @@ static volatile int buffer_end = 0;
 static bool shift_pressed = false;
 static bool ctrl_pressed = false;
 static bool caps_lock = false;
+static bool extended_code = false;  /* E0 prefix received */
 
 /* US keyboard scancode to ASCII (lowercase) */
 static const char scancode_to_ascii[] = {
@@ -57,6 +59,31 @@ static void keyboard_handler(registers_t *regs) {
     (void)regs;
     
     uint8_t scancode = inb(KB_DATA_PORT);
+    
+    /* Handle extended scancode prefix */
+    if (scancode == 0xE0) {
+        extended_code = true;
+        return;
+    }
+
+    /* Handle extended scancodes (arrow keys, etc.) */
+    if (extended_code) {
+        extended_code = false;
+        
+        /* Arrow key presses (not releases) */
+        if (!(scancode & 0x80)) {
+            switch (scancode) {
+                case 0x48:  /* Up arrow */
+                    vga_scroll_up();
+                    return;
+                case 0x50:  /* Down arrow */
+                    vga_scroll_down();
+                    return;
+                /* Left/Right arrows could be used for command history later */
+            }
+        }
+        return;  /* Ignore other extended codes for now */
+    }
 
     /* Handle key release (high bit set) */
     if (scancode & 0x80) {

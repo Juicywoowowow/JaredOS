@@ -66,7 +66,26 @@ void isr_handler(registers_t *regs) {
         kprintf("EIP: 0x%x  CS: 0x%x  EFLAGS: 0x%x\n", regs->eip, regs->cs, regs->eflags);
         vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
         
-        /* Halt on unhandled exception */
+        /* For recoverable exceptions, try to continue */
+        /* Invalid opcode (6), GPF (13) from user code might be recoverable */
+        if (regs->int_no == 6 || regs->int_no == 13) {
+            kprintf("Press any key to return to shell...\n");
+            /* Wait for keypress - simple busy wait */
+            while (1) {
+                uint8_t status;
+                __asm__ volatile("inb $0x64, %0" : "=a"(status));
+                if (status & 0x01) {
+                    uint8_t key;
+                    __asm__ volatile("inb $0x60, %0" : "=a"(key));
+                    if (!(key & 0x80)) break;  /* Key down */
+                }
+            }
+            /* Return - the shell will restart */
+            extern void shell_run(void);
+            shell_run();
+        }
+        
+        /* Halt on truly fatal exceptions */
         while (1) {
             __asm__ volatile ("cli; hlt");
         }
