@@ -21,5 +21,9 @@ void cmd_calc(int argc, char *argv[]);
 void cmd_mem(int argc, char *argv[]);
 void cmd_dump(int argc, char *argv[]);
 void cmd_edit(int argc, char *argv[]);
+void cmd_ls(int argc, char *argv[]);
+void cmd_cat(int argc, char *argv[]);
+void cmd_write(int argc, char *argv[]);
+void cmd_format(int argc, char *argv[]);
 
 #endif /* COMMANDS_H */

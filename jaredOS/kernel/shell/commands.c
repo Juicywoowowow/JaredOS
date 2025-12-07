@@ -7,7 +7,9 @@
 #include "editor.h"
 #include "../drivers/vga.h"
 #include "../drivers/timer.h"
+#include "../drivers/ata.h"
 #include "../memory/pmm.h"
+#include "../fs/simplefs.h"
 #include "../lib/printf.h"
 #include "../lib/string.h"
 #include "../lib/stdlib.h"
@@ -30,6 +32,10 @@ static command_t commands[] = {
     {"mem",    "Show memory usage",        cmd_mem},
     {"dump",   "Hex dump memory",          cmd_dump},
     {"edit",   "Text editor",              cmd_edit},
+    {"ls",     "List files",               cmd_ls},
+    {"cat",    "Print file contents",      cmd_cat},
+    {"write",  "Write text to file",       cmd_write},
+    {"format", "Format disk",              cmd_format},
     {"reboot", "Reboot the system",        cmd_reboot},
     {NULL, NULL, NULL}
 };
@@ -277,4 +283,138 @@ void cmd_edit(int argc, char *argv[]) {
         filename = argv[1];
     }
     editor_open(filename);
+}
+
+/**
+ * List files command
+ */
+void cmd_ls(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
+    
+    if (!fs_ready()) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        kprintf("Filesystem not ready. Use 'format' first.\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        return;
+    }
+    
+    fs_file_t files[FS_MAX_FILES];
+    int count = fs_list(files, FS_MAX_FILES);
+    
+    if (count == 0) {
+        kprintf("No files found.\n");
+        return;
+    }
+    
+    kprintf("\nFiles:\n");
+    kprintf("------\n");
+    for (int i = 0; i < count; i++) {
+        vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+        kprintf("  %s", files[i].name);
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        /* Pad name */
+        int len = strlen(files[i].name);
+        for (int j = len; j < 20; j++) vga_putchar(' ');
+        kprintf("%u bytes\n", files[i].size);
+    }
+    kprintf("\n%d file(s)\n\n", count);
+}
+
+/**
+ * Cat command - print file contents
+ */
+void cmd_cat(int argc, char *argv[]) {
+    if (argc < 2) {
+        kprintf("Usage: cat <filename>\n");
+        return;
+    }
+    
+    if (!fs_ready()) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        kprintf("Filesystem not ready.\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        return;
+    }
+    
+    static char buffer[4096];
+    int bytes = fs_read(argv[1], buffer, sizeof(buffer) - 1);
+    
+    if (bytes < 0) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        kprintf("File not found: %s\n", argv[1]);
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        return;
+    }
+    
+    buffer[bytes] = '\0';
+    kprintf("%s", buffer);
+    if (bytes > 0 && buffer[bytes - 1] != '\n') {
+        kprintf("\n");
+    }
+}
+
+/**
+ * Write command - write text to file
+ */
+void cmd_write(int argc, char *argv[]) {
+    if (argc < 3) {
+        kprintf("Usage: write <filename> <text...>\n");
+        kprintf("Example: write hello.txt Hello World!\n");
+        return;
+    }
+    
+    if (!fs_ready()) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        kprintf("Filesystem not ready. Use 'format' first.\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        return;
+    }
+    
+    /* Concatenate all remaining args */
+    static char buffer[1024];
+    buffer[0] = '\0';
+    
+    for (int i = 2; i < argc; i++) {
+        strcat(buffer, argv[i]);
+        if (i < argc - 1) strcat(buffer, " ");
+    }
+    strcat(buffer, "\n");
+    
+    if (fs_write(argv[1], buffer, strlen(buffer))) {
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        kprintf("Written %u bytes to %s\n", strlen(buffer), argv[1]);
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        kprintf("Failed to write file.\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    }
+}
+
+/**
+ * Format command - format disk
+ */
+void cmd_format(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
+    
+    if (!ata_drive_present()) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        kprintf("No disk detected.\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        return;
+    }
+    
+    kprintf("Formatting disk...\n");
+    
+    if (fs_format()) {
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        kprintf("Disk formatted successfully!\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        kprintf("Format failed.\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    }
 }

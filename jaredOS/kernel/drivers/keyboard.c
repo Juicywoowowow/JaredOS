@@ -16,8 +16,9 @@ static char key_buffer[KEY_BUFFER_SIZE];
 static volatile int buffer_start = 0;
 static volatile int buffer_end = 0;
 
-/* Shift state */
+/* Modifier state */
 static bool shift_pressed = false;
+static bool ctrl_pressed = false;
 static bool caps_lock = false;
 
 /* US keyboard scancode to ASCII (lowercase) */
@@ -60,15 +61,25 @@ static void keyboard_handler(registers_t *regs) {
     /* Handle key release (high bit set) */
     if (scancode & 0x80) {
         scancode &= 0x7F;
+        /* Left/Right Shift release */
         if (scancode == 0x2A || scancode == 0x36) {
             shift_pressed = false;
+        }
+        /* Left/Right Ctrl release */
+        if (scancode == 0x1D) {
+            ctrl_pressed = false;
         }
         return;
     }
 
-    /* Handle special keys */
+    /* Handle modifier keys (press) */
     if (scancode == 0x2A || scancode == 0x36) {
         shift_pressed = true;
+        return;
+    }
+
+    if (scancode == 0x1D) {  /* Left Ctrl */
+        ctrl_pressed = true;
         return;
     }
 
@@ -93,6 +104,13 @@ static void keyboard_handler(registers_t *regs) {
             c = scancode_to_ascii[scancode];
         }
 
+        /* Handle Ctrl + letter (generate control codes 1-26) */
+        if (ctrl_pressed && c >= 'a' && c <= 'z') {
+            c = c - 'a' + 1;  /* Ctrl+A=1, Ctrl+B=2, ..., Ctrl+Z=26 */
+        } else if (ctrl_pressed && c >= 'A' && c <= 'Z') {
+            c = c - 'A' + 1;
+        }
+
         if (c != 0) {
             buffer_add(c);
         }
@@ -106,6 +124,7 @@ void keyboard_init(void) {
     buffer_start = 0;
     buffer_end = 0;
     shift_pressed = false;
+    ctrl_pressed = false;
     caps_lock = false;
     irq_register_handler(1, keyboard_handler);
 }

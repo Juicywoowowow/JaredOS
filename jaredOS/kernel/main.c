@@ -11,6 +11,8 @@
 #include "drivers/keyboard.h"
 #include "drivers/timer.h"
 #include "drivers/serial.h"
+#include "drivers/ata.h"
+#include "fs/simplefs.h"
 #include "lib/printf.h"
 #include "shell/shell.h"
 
@@ -33,7 +35,7 @@ void kernel_main(void) {
     kprintf("   _/ |\\__,_|_|  \\___|\\__,_|\\___/|____/ \n");
     kprintf("  |__/                                  \n");
     kprintf("  =====================================\n");
-    kprintf("         Version 0.1.0\n\n");
+    kprintf("         Version 0.2.0\n\n");
 
     vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
 
@@ -58,6 +60,28 @@ void kernel_main(void) {
 
     kprintf("[INIT] Serial Port (COM1)...\n");
     serial_init();
+
+    /* Initialize disk */
+    kprintf("[INIT] ATA/IDE Driver...\n");
+    if (ata_init()) {
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        kprintf("       Disk detected!\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        
+        kprintf("[INIT] Filesystem...\n");
+        if (fs_init()) {
+            vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+            kprintf("       Filesystem ready.\n");
+        } else {
+            vga_set_color(VGA_COLOR_LIGHT_BROWN, VGA_COLOR_BLACK);
+            kprintf("       No filesystem. Use 'format' command.\n");
+        }
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_BROWN, VGA_COLOR_BLACK);
+        kprintf("       No disk detected.\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    }
 
     /* Enable interrupts */
     __asm__ volatile ("sti");

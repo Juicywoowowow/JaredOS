@@ -36,13 +36,16 @@ KERNEL_C_SRCS = $(KERNEL_DIR)/main.c \
                 $(KERNEL_DIR)/drivers/keyboard.c \
                 $(KERNEL_DIR)/drivers/timer.c \
                 $(KERNEL_DIR)/drivers/serial.c \
+                $(KERNEL_DIR)/drivers/ata.c \
                 $(KERNEL_DIR)/lib/string.c \
                 $(KERNEL_DIR)/lib/stdlib.c \
                 $(KERNEL_DIR)/lib/printf.c \
+                $(KERNEL_DIR)/fs/simplefs.c \
                 $(KERNEL_DIR)/shell/shell.c \
                 $(KERNEL_DIR)/shell/commands.c \
                 $(KERNEL_DIR)/shell/calc.c \
-                $(KERNEL_DIR)/shell/parser.c
+                $(KERNEL_DIR)/shell/parser.c \
+                $(KERNEL_DIR)/shell/editor.c
 
 # Kernel ASM sources
 KERNEL_ASM_SRCS = $(KERNEL_DIR)/core/gdt_asm.asm \
@@ -115,13 +118,20 @@ dirs:
 	@mkdir -p $(BUILD_DIR)/memory
 	@mkdir -p $(BUILD_DIR)/drivers
 	@mkdir -p $(BUILD_DIR)/lib
+	@mkdir -p $(BUILD_DIR)/fs
 	@mkdir -p $(BUILD_DIR)/shell
 
-# Run in QEMU
-run: $(FLOPPY_IMG)
-	qemu-system-i386 -fda $(FLOPPY_IMG) -boot a
+# Create disk image for filesystem (1MB)
+disk.img:
+	dd if=/dev/zero of=disk.img bs=1024 count=1024 2>/dev/null
+	@echo "Created disk.img (1MB)"
+
+# Run in QEMU with disk
+run: $(FLOPPY_IMG) disk.img
+	qemu-system-i386 -drive file=$(FLOPPY_IMG),format=raw,if=floppy -drive file=disk.img,format=raw,if=ide -boot a
 
 # Clean build artifacts
 clean:
 	rm -rf $(BUILD_DIR)
 	rm -f $(FLOPPY_IMG)
+	rm -f disk.img
