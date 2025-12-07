@@ -10,6 +10,7 @@
 #include "../drivers/ata.h"
 #include "../memory/pmm.h"
 #include "../fs/simplefs.h"
+#include "../../lang/gwango/core/gwango.h"
 #include "../lib/printf.h"
 #include "../lib/string.h"
 #include "../lib/stdlib.h"
@@ -32,6 +33,7 @@ static command_t commands[] = {
     {"mem",    "Show memory usage",        cmd_mem},
     {"dump",   "Hex dump memory",          cmd_dump},
     {"edit",   "Text editor",              cmd_edit},
+    {"gwan",   "Gwango interpreter",       cmd_gwan},
     {"ls",     "List files",               cmd_ls},
     {"cat",    "Print file contents",      cmd_cat},
     {"write",  "Write text to file",       cmd_write},
@@ -416,5 +418,19 @@ void cmd_format(int argc, char *argv[]) {
         vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
         kprintf("Format failed.\n");
         vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    }
+}
+
+/**
+ * Gwango language interpreter
+ * Usage: gwan [file.gw]
+ */
+void cmd_gwan(int argc, char *argv[]) {
+    if (argc < 2) {
+        /* REPL mode */
+        gwango_repl();
+    } else {
+        /* Run file */
+        gwango_run_file(argv[1]);
     }
 }

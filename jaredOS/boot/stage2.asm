@@ -8,7 +8,7 @@
 [org 0x7E00]
 
 KERNEL_OFFSET equ 0x100000      ; Load kernel at 1MB
-KERNEL_SECTORS equ 64           ; Sectors to load for kernel (~32KB)
+KERNEL_SECTORS equ 128          ; Sectors to load for kernel (~64KB)
 
 ; Floppy geometry
 SECTORS_PER_TRACK equ 18

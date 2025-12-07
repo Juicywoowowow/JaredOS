@@ -47,6 +47,13 @@ KERNEL_C_SRCS = $(KERNEL_DIR)/main.c \
                 $(KERNEL_DIR)/shell/parser.c \
                 $(KERNEL_DIR)/shell/editor.c
 
+# Gwango language sources
+GWANGO_DIR = lang/gwango
+GWANGO_SRCS = $(GWANGO_DIR)/core/lexer.c \
+              $(GWANGO_DIR)/core/parser.c \
+              $(GWANGO_DIR)/core/jit.c \
+              $(GWANGO_DIR)/core/gwango.c
+
 # Kernel ASM sources
 KERNEL_ASM_SRCS = $(KERNEL_DIR)/core/gdt_asm.asm \
                   $(KERNEL_DIR)/core/idt_asm.asm \
@@ -55,8 +62,9 @@ KERNEL_ASM_SRCS = $(KERNEL_DIR)/core/gdt_asm.asm \
 
 # Object files
 KERNEL_C_OBJS = $(patsubst $(KERNEL_DIR)/%.c,$(BUILD_DIR)/%.o,$(KERNEL_C_SRCS))
+GWANGO_OBJS = $(patsubst $(GWANGO_DIR)/%.c,$(BUILD_DIR)/gwango/%.o,$(GWANGO_SRCS))
 KERNEL_ASM_OBJS = $(patsubst $(KERNEL_DIR)/%.asm,$(BUILD_DIR)/%.o,$(KERNEL_ASM_SRCS))
-KERNEL_OBJS = $(KERNEL_C_OBJS) $(KERNEL_ASM_OBJS)
+KERNEL_OBJS = $(KERNEL_C_OBJS) $(GWANGO_OBJS) $(KERNEL_ASM_OBJS)
 
 # Output files
 STAGE1_BIN = $(BUILD_DIR)/stage1.bin
@@ -112,6 +120,12 @@ $(BUILD_DIR)/%.o: $(KERNEL_DIR)/%.asm | dirs
 	@echo "Assembling $<..."
 	$(AS) $(ASFLAGS_ELF) $< -o $@
 
+# Compile Gwango sources
+$(BUILD_DIR)/gwango/%.o: $(GWANGO_DIR)/%.c | dirs
+	@mkdir -p $(dir $@)
+	@echo "Compiling $<..."
+	$(CC) $(CFLAGS) -c $< -o $@
+
 # Create directories
 dirs:
 	@mkdir -p $(BUILD_DIR)/core
@@ -120,6 +134,7 @@ dirs:
 	@mkdir -p $(BUILD_DIR)/lib
 	@mkdir -p $(BUILD_DIR)/fs
 	@mkdir -p $(BUILD_DIR)/shell
+	@mkdir -p $(BUILD_DIR)/gwango/core
 
 # Create disk image for filesystem (1MB)
 disk.img:
