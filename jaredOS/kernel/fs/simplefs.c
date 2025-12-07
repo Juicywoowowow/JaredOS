@@ -97,6 +97,42 @@ bool fs_format(void) {
     }
     
     fs_initialized = true;
+    
+    /* Create example Gwango files */
+    static const char hello_gw[] = 
+        "; Hello World - Your first Gwango program!\n"
+        "@vga.print \"Hello from Gwango!\"\n"
+        "@vga.newline\n";
+    fs_write("hello.gw", hello_gw, sizeof(hello_gw) - 1);
+    
+    static const char math_gw[] = 
+        "; Math Example - Variables and arithmetic\n"
+        "var a = 10\n"
+        "var b = 5\n"
+        "var sum = a + b\n"
+        "@vga.print \"Sum: \"\n"
+        "@vga.print sum\n"
+        "@vga.newline\n";
+    fs_write("math.gw", math_gw, sizeof(math_gw) - 1);
+    
+    static const char loop_gw[] = 
+        "; Loop Example - Counting from 1 to 10\n"
+        "loop i = 1 to 10\n"
+        "    @vga.print i\n"
+        "    @vga.print \" \"\n"
+        "end\n"
+        "@vga.newline\n";
+    fs_write("loop.gw", loop_gw, sizeof(loop_gw) - 1);
+    
+    static const char input_gw[] = 
+        "; Input Example - Press a key\n"
+        "@vga.print \"Press any key: \"\n"
+        "var k = @kb.getchar\n"
+        "@vga.print \"You pressed ASCII: \"\n"
+        "@vga.print k\n"
+        "@vga.newline\n";
+    fs_write("input.gw", input_gw, sizeof(input_gw) - 1);
+    
     return true;
 }
 

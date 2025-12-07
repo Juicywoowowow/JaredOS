@@ -97,11 +97,24 @@ Run the REPL by typing `gwan`, or execute a file with `gwan filename.gw`.
 var x = 42
 var y = x + 10
 
-; Kernel Calls
-@vga.print "Value: "
-@vga.print y
+; VGA Module
+@vga.print "Hello"
+@vga.print x
 @vga.clear
 @vga.newline
+
+; Keyboard Module
+var k = @kb.getchar     ; Wait for keypress
+var ready = @kb.haskey  ; Check if key available
+
+; System Module
+var t = @sys.time       ; Get uptime ticks
+@sys.sleep 100          ; Delay 100 ticks
+@sys.reboot             ; Reboot system
+
+; Memory Module (TempleOS-style!)
+var byte = @mem.peek 0xB8000   ; Read VGA memory
+@mem.poke 0xB8000 65           ; Write 'A' to VGA
 
 ; Control Flow
 if x > 20
@@ -111,10 +124,16 @@ else
 end
 
 ; Loops
-loop i = 0 to 10
+loop i = 1 to 10
     @vga.print i
 end
 ```
+
+**Example Files (auto-created on `format`):**
+- `hello.gw` - Hello World
+- `math.gw` - Variables & arithmetic
+- `loop.gw` - Loop example
+- `input.gw` - Keyboard input demo
 
 ---
 

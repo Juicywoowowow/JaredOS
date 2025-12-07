@@ -7,6 +7,7 @@
 #include "jit.h"
 #include "../../../kernel/lib/string.h"
 #include "../../../kernel/drivers/vga.h"
+#include "../../../kernel/drivers/keyboard.h"
 #include "../../../kernel/lib/printf.h"
 
 /* Variables storage - still used for runtime */
@@ -85,6 +86,44 @@ void kcall_vga_clear(void) {
 
 void kcall_vga_newline(void) {
     kprintf("\n");
+}
+
+/* @kb module */
+int kcall_kb_getchar(void) {
+    return (int)keyboard_getchar();
+}
+
+int kcall_kb_haskey(void) {
+    return keyboard_has_key() ? 1 : 0;
+}
+
+/* @sys module */
+int kcall_sys_time(void) {
+    extern uint32_t timer_get_ticks(void);
+    return (int)timer_get_ticks();
+}
+
+void kcall_sys_sleep(int ticks) {
+    extern uint32_t timer_get_ticks(void);
+    uint32_t start = timer_get_ticks();
+    while (timer_get_ticks() - start < (uint32_t)ticks);
+}
+
+void kcall_sys_reboot(void) {
+    /* Keyboard controller reset */
+    uint8_t good = 0x02;
+    while (good & 0x02)
+        __asm__ volatile("inb $0x64, %0" : "=a"(good));
+    __asm__ volatile("outb %0, $0x64" : : "a"((uint8_t)0xFE));
+}
+
+/* @mem module */
+int kcall_mem_peek(int addr) {
+    return *(uint8_t*)(uint32_t)addr;
+}
+
+void kcall_mem_poke(int addr, int val) {
+    *(uint8_t*)(uint32_t)addr = (uint8_t)val;
 }
 
 /* Forward declarations */
@@ -270,6 +309,77 @@ static void compile_stmt(ast_node_t *node) {
                     emit_dword((uint32_t)kcall_vga_newline);
                     emit_byte(0xFF);
                     emit_byte(0xD0);
+                }
+            }
+            /* @kb module */
+            else if (mod_len == 2 && mod[0] == 'k' && mod[1] == 'b') {
+                if (fn_len == 7 && strncmp(fn, "getchar", 7) == 0) {
+                    /* call kcall_kb_getchar, result in eax */
+                    emit_byte(0xB8);
+                    emit_dword((uint32_t)kcall_kb_getchar);
+                    emit_byte(0xFF);
+                    emit_byte(0xD0);
+                } else if (fn_len == 6 && strncmp(fn, "haskey", 6) == 0) {
+                    emit_byte(0xB8);
+                    emit_dword((uint32_t)kcall_kb_haskey);
+                    emit_byte(0xFF);
+                    emit_byte(0xD0);
+                }
+            }
+            /* @sys module */
+            else if (mod_len == 3 && mod[0] == 's' && mod[1] == 'y' && mod[2] == 's') {
+                if (fn_len == 4 && strncmp(fn, "time", 4) == 0) {
+                    emit_byte(0xB8);
+                    emit_dword((uint32_t)kcall_sys_time);
+                    emit_byte(0xFF);
+                    emit_byte(0xD0);
+                } else if (fn_len == 5 && strncmp(fn, "sleep", 5) == 0) {
+                    if (node->data.call.arg_count > 0) {
+                        compile_expr(node->data.call.args[0]);
+                        emit_byte(0x50);  /* push eax */
+                        emit_byte(0xB8);
+                        emit_dword((uint32_t)kcall_sys_sleep);
+                        emit_byte(0xFF);
+                        emit_byte(0xD0);
+                        emit_byte(0x83);
+                        emit_byte(0xC4);
+                        emit_byte(0x04);
+                    }
+                } else if (fn_len == 6 && strncmp(fn, "reboot", 6) == 0) {
+                    emit_byte(0xB8);
+                    emit_dword((uint32_t)kcall_sys_reboot);
+                    emit_byte(0xFF);
+                    emit_byte(0xD0);
+                }
+            }
+            /* @mem module */
+            else if (mod_len == 3 && mod[0] == 'm' && mod[1] == 'e' && mod[2] == 'm') {
+                if (fn_len == 4 && strncmp(fn, "peek", 4) == 0) {
+                    if (node->data.call.arg_count > 0) {
+                        compile_expr(node->data.call.args[0]);
+                        emit_byte(0x50);
+                        emit_byte(0xB8);
+                        emit_dword((uint32_t)kcall_mem_peek);
+                        emit_byte(0xFF);
+                        emit_byte(0xD0);
+                        emit_byte(0x83);
+                        emit_byte(0xC4);
+                        emit_byte(0x04);
+                    }
+                } else if (fn_len == 4 && strncmp(fn, "poke", 4) == 0) {
+                    if (node->data.call.arg_count >= 2) {
+                        compile_expr(node->data.call.args[1]);  /* val */
+                        emit_byte(0x50);
+                        compile_expr(node->data.call.args[0]);  /* addr */
+                        emit_byte(0x50);
+                        emit_byte(0xB8);
+                        emit_dword((uint32_t)kcall_mem_poke);
+                        emit_byte(0xFF);
+                        emit_byte(0xD0);
+                        emit_byte(0x83);
+                        emit_byte(0xC4);
+                        emit_byte(0x08);
+                    }
                 }
             }
             break;
