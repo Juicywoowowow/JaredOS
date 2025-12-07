@@ -10,6 +10,12 @@
 /* Run Gwango source code */
 bool gwango_run(const char *source);
 
+/* Run and dump generated x86 code */
+bool gwango_dump(const char *source);
+
+/* Dump generated x86 code from file */
+bool gwango_dump_file(const char *filename);
+
 /* Run Gwango file from filesystem */
 bool gwango_run_file(const char *filename);
 

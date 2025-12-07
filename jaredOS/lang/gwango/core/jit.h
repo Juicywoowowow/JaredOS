@@ -27,6 +27,9 @@ void jit_init(jit_t *jit, uint8_t *code_buffer);
 /* Compile AST to x86 */
 bool jit_compile(jit_t *jit, ast_node_t *program);
 
+/* Disassemble generated code */
+void jit_disassemble(jit_t *jit);
+
 /* Get entry point */
 jit_func_t jit_get_entry(jit_t *jit);
 

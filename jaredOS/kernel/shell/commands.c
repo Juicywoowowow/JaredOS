@@ -423,12 +423,26 @@ void cmd_format(int argc, char *argv[]) {
 
 /**
  * Gwango language interpreter
- * Usage: gwan [file.gw]
+ * Usage: gwan [-d] [file.gw]
+ *   -d  Dump generated x86 bytecode
  */
 void cmd_gwan(int argc, char *argv[]) {
     if (argc < 2) {
         /* REPL mode */
         gwango_repl();
+    } else if (argc == 2 && strcmp(argv[1], "-d") == 0) {
+        /* Dump mode REPL - show example */
+        kprintf("Usage: gwan -d <code>\n");
+        kprintf("Example: gwan -d \"var x = 5\"\n");
+    } else if (argc >= 3 && strcmp(argv[1], "-d") == 0) {
+        /* Dump mode - check if file exists first */
+        fs_file_t info;
+        if (fs_stat(argv[2], &info)) {
+            gwango_dump_file(argv[2]);
+        } else {
+            /* Treat as inline code */
+            gwango_dump(argv[2]);
+        }
     } else {
         /* Run file */
         gwango_run_file(argv[1]);
