@@ -1,2 +1,1 @@
-# Waldey
-Waldey lua runtime!
+# JaredOS
