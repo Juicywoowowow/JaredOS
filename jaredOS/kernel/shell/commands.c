@@ -4,10 +4,13 @@
 
 #include "commands.h"
 #include "calc.h"
+#include "editor.h"
 #include "../drivers/vga.h"
 #include "../drivers/timer.h"
+#include "../memory/pmm.h"
 #include "../lib/printf.h"
 #include "../lib/string.h"
+#include "../lib/stdlib.h"
 
 /* Command structure */
 typedef struct {
@@ -24,6 +27,9 @@ static command_t commands[] = {
     {"about",  "About jaredOS",            cmd_about},
     {"time",   "Show system uptime",       cmd_time},
     {"calc",   "Simple calculator",        cmd_calc},
+    {"mem",    "Show memory usage",        cmd_mem},
+    {"dump",   "Hex dump memory",          cmd_dump},
+    {"edit",   "Text editor",              cmd_edit},
     {"reboot", "Reboot the system",        cmd_reboot},
     {NULL, NULL, NULL}
 };
@@ -155,4 +161,120 @@ void cmd_reboot(int argc, char *argv[]) {
     
     /* Halt if reboot fails */
     __asm__ volatile ("cli; hlt");
+}
+
+/**
+ * Memory info command
+ */
+void cmd_mem(int argc, char *argv[]) {
+    (void)argc;
+    (void)argv;
+    
+    uint32_t total = pmm_get_total_memory();
+    uint32_t used = pmm_get_used_memory();
+    uint32_t free_mem = total - used;
+    
+    kprintf("\nMemory Information:\n");
+    kprintf("-------------------\n");
+    vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+    kprintf("  Total:  ");
+    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    kprintf("%u KB\n", total);
+    vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+    kprintf("  Used:   ");
+    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    kprintf("%u KB\n", used);
+    vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+    kprintf("  Free:   ");
+    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    kprintf("%u KB\n\n", free_mem);
+}
+
+/**
+ * Hex dump command
+ * Usage: dump <address> [length]
+ */
+void cmd_dump(int argc, char *argv[]) {
+    if (argc < 2) {
+        kprintf("Usage: dump <address> [length]\n");
+        kprintf("Example: dump 0x100000 64\n");
+        return;
+    }
+    
+    /* Parse address (handle 0x prefix) */
+    const char *addr_str = argv[1];
+    uint32_t addr = 0;
+    
+    if (addr_str[0] == '0' && (addr_str[1] == 'x' || addr_str[1] == 'X')) {
+        addr_str += 2;
+    }
+    
+    /* Convert hex string to number */
+    while (*addr_str) {
+        addr <<= 4;
+        if (*addr_str >= '0' && *addr_str <= '9') {
+            addr |= *addr_str - '0';
+        } else if (*addr_str >= 'a' && *addr_str <= 'f') {
+            addr |= *addr_str - 'a' + 10;
+        } else if (*addr_str >= 'A' && *addr_str <= 'F') {
+            addr |= *addr_str - 'A' + 10;
+        }
+        addr_str++;
+    }
+    
+    /* Parse length (default 64 bytes) */
+    uint32_t len = 64;
+    if (argc >= 3) {
+        len = (uint32_t)atoi(argv[2]);
+    }
+    if (len > 256) len = 256;  /* Limit for display */
+    
+    uint8_t *ptr = (uint8_t*)addr;
+    
+    kprintf("\nDump of 0x%x (%u bytes):\n", addr, len);
+    
+    for (uint32_t i = 0; i < len; i += 16) {
+        /* Print address */
+        vga_set_color(VGA_COLOR_LIGHT_CYAN, VGA_COLOR_BLACK);
+        kprintf("%x: ", addr + i);
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+        
+        /* Print hex bytes */
+        for (uint32_t j = 0; j < 16 && (i + j) < len; j++) {
+            uint8_t b = ptr[i + j];
+            if (b < 16) kprintf("0");
+            kprintf("%x ", b);
+        }
+        
+        /* Padding if less than 16 bytes */
+        for (uint32_t j = len - i; j < 16 && i + 16 > len; j++) {
+            kprintf("   ");
+        }
+        
+        /* Print ASCII */
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        kprintf(" |");
+        for (uint32_t j = 0; j < 16 && (i + j) < len; j++) {
+            uint8_t b = ptr[i + j];
+            if (b >= 32 && b < 127) {
+                vga_putchar(b);
+            } else {
+                vga_putchar('.');
+            }
+        }
+        kprintf("|\n");
+        vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
+    }
+    kprintf("\n");
+}
+
+/**
+ * Edit command - open text editor
+ */
+void cmd_edit(int argc, char *argv[]) {
+    const char *filename = NULL;
+    if (argc >= 2) {
+        filename = argv[1];
+    }
+    editor_open(filename);
 }
