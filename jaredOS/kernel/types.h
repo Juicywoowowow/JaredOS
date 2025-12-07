@@ -22,8 +22,10 @@ typedef uint32_t size_t;
 typedef int32_t  ssize_t;
 typedef int32_t  ptrdiff_t;
 
-/* Boolean */
-typedef enum { false = 0, true = 1 } bool;
+/* Boolean - use _Bool to avoid C23 keyword issues */
+typedef _Bool bool;
+#define true 1
+#define false 0
 
 /* NULL pointer */
 #define NULL ((void*)0)
