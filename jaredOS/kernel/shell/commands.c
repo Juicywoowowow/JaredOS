@@ -56,7 +56,10 @@ void cmd_help(int argc, char *argv[]) {
     
     for (int i = 0; commands[i].name != NULL; i++) {
         vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
-        kprintf("  %-10s", commands[i].name);
+        kprintf("  %s", commands[i].name);
+        /* Pad to 10 characters */
+        int len = strlen(commands[i].name);
+        for (int j = len; j < 10; j++) vga_putchar(' ');
         vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
         kprintf("- %s\n", commands[i].description);
     }
@@ -119,7 +122,11 @@ void cmd_time(int argc, char *argv[]) {
     uint32_t minutes = (uptime % 3600) / 60;
     uint32_t seconds = uptime % 60;
     
-    kprintf("System uptime: %u:%02u:%02u\n", hours, minutes, seconds);
+    kprintf("System uptime: %u:", hours);
+    if (minutes < 10) kprintf("0");
+    kprintf("%u:", minutes);
+    if (seconds < 10) kprintf("0");
+    kprintf("%u\n", seconds);
     kprintf("Total ticks: %u\n", timer_get_ticks());
 }
 

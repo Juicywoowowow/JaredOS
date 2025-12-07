@@ -36,7 +36,8 @@ start:
     int 0x13
     jc disk_error               ; Jump if carry flag set (error)
 
-    ; Jump to stage2
+    ; Jump to stage2 (with boot drive in DL)
+    mov dl, [boot_drive]
     jmp STAGE2_OFFSET
 
 disk_error:

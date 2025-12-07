@@ -8,9 +8,16 @@
 [org 0x7E00]
 
 KERNEL_OFFSET equ 0x100000      ; Load kernel at 1MB
-KERNEL_SECTORS equ 64           ; Sectors to load for kernel
+KERNEL_SECTORS equ 32           ; Sectors to load for kernel (~16KB)
+
+; Floppy geometry
+SECTORS_PER_TRACK equ 18
+HEADS equ 2
 
 stage2_start:
+    ; Save boot drive (passed from stage1 in DL)
+    mov [boot_drive], dl
+
     ; Print stage2 message
     mov si, msg_stage2
     call print_string_16
@@ -18,22 +25,101 @@ stage2_start:
     ; Enable A20 line
     call enable_a20
 
-    ; Load kernel to temporary location (below 1MB first)
+    ; Print loading message
     mov si, msg_loading_kernel
     call print_string_16
 
-    ; Load kernel to 0x10000 temporarily
-    mov ax, 0x1000
-    mov es, ax
-    xor bx, bx                  ; ES:BX = 0x1000:0x0000 = 0x10000
-    mov ah, 0x02
-    mov al, KERNEL_SECTORS
-    mov ch, 0                   ; Cylinder 0
-    mov cl, 6                   ; Start from sector 6 (after stage1 + stage2)
-    mov dh, 0                   ; Head 0
-    mov dl, [0x7C00 + 72]       ; Get boot drive from stage1
+    ; Reset disk system
+    xor ax, ax
+    mov dl, [boot_drive]
+    int 0x13
+
+    ; Load kernel to 0x10000 using multiple reads if needed
+    mov bx, 0x1000              ; Segment
+    mov es, bx
+    xor bx, bx                  ; Offset = 0, so ES:BX = 0x10000
+
+    mov cx, KERNEL_SECTORS      ; Total sectors to read
+    mov byte [current_sector], 6  ; Starting sector (after stage1+stage2)
+    mov byte [current_head], 0
+    mov byte [current_cylinder], 0
+
+.read_loop:
+    cmp cx, 0
+    je .read_done
+
+    ; Calculate how many sectors we can read in this track
+    mov al, [current_sector]
+    mov ah, SECTORS_PER_TRACK + 1
+    sub ah, al                  ; Remaining sectors in track
+    
+    ; Don't read more than we need
+    cmp ah, cl
+    jbe .use_ah
+    mov ah, cl
+.use_ah:
+    mov [sectors_to_read], ah
+
+    ; Read sectors
+    push cx                     ; Save remaining count
+    mov ah, 0x02                ; BIOS read sectors
+    mov al, [sectors_to_read]
+    mov ch, [current_cylinder]
+    mov cl, [current_sector]
+    mov dh, [current_head]
+    mov dl, [boot_drive]
     int 0x13
     jc disk_error_16
+
+    ; Update buffer pointer
+    mov al, [sectors_to_read]
+    xor ah, ah
+    shl ax, 9                   ; Multiply by 512
+    add bx, ax
+    jnc .no_segment_overflow
+    
+    ; Handle segment overflow
+    mov ax, es
+    add ax, 0x1000
+    mov es, ax
+    xor bx, bx
+.no_segment_overflow:
+
+    ; Update sector position
+    mov al, [current_sector]
+    add al, [sectors_to_read]
+    
+    ; Check if we crossed a track
+    cmp al, SECTORS_PER_TRACK + 1
+    jb .same_track
+    
+    ; Move to next head/cylinder
+    mov byte [current_sector], 1
+    mov al, [current_head]
+    inc al
+    cmp al, HEADS
+    jb .same_cylinder
+    
+    xor al, al                  ; Head 0
+    inc byte [current_cylinder]
+.same_cylinder:
+    mov [current_head], al
+    jmp .update_count
+    
+.same_track:
+    mov [current_sector], al
+
+.update_count:
+    pop cx
+    mov al, [sectors_to_read]
+    xor ah, ah
+    sub cx, ax
+    jmp .read_loop
+
+.read_done:
+    ; Print success
+    mov si, msg_ok
+    call print_string_16
 
     ; Switch to protected mode
     cli                         ; Disable interrupts
@@ -51,51 +137,51 @@ stage2_start:
 ; Enable A20 Line
 ; =============================================================================
 enable_a20:
-    ; Try keyboard controller method
-    call .wait_input
-    mov al, 0xAD
-    out 0x64, al
-
-    call .wait_input
-    mov al, 0xD0
-    out 0x64, al
-
-    call .wait_output
-    in al, 0x60
-    push ax
-
-    call .wait_input
-    mov al, 0xD1
-    out 0x64, al
-
-    call .wait_input
-    pop ax
+    ; Fast A20 method (port 0x92)
+    in al, 0x92
     or al, 2
-    out 0x60, al
-
-    call .wait_input
-    mov al, 0xAE
-    out 0x64, al
-
-    call .wait_input
-    ret
-
-.wait_input:
-    in al, 0x64
-    test al, 2
-    jnz .wait_input
-    ret
-
-.wait_output:
-    in al, 0x64
-    test al, 1
-    jz .wait_output
+    out 0x92, al
     ret
 
 disk_error_16:
     mov si, msg_disk_error
     call print_string_16
+    mov ah, 0x01                ; Get disk status
+    mov dl, [boot_drive]
+    int 0x13
+    ; Print error code in AH
+    mov al, ah
+    call print_hex
     jmp $
+
+; =============================================================================
+; Print hex byte in AL
+; =============================================================================
+print_hex:
+    push ax
+    mov ah, 0x0E
+    mov bx, 0
+    
+    push ax
+    shr al, 4
+    cmp al, 10
+    jb .digit1
+    add al, 7
+.digit1:
+    add al, '0'
+    int 0x10
+    pop ax
+    
+    and al, 0x0F
+    cmp al, 10
+    jb .digit2
+    add al, 7
+.digit2:
+    add al, '0'
+    int 0x10
+    
+    pop ax
+    ret
 
 ; =============================================================================
 ; Print string in 16-bit mode
@@ -117,9 +203,16 @@ print_string_16:
 ; =============================================================================
 ; 16-bit data
 ; =============================================================================
+boot_drive:         db 0
+current_sector:     db 0
+current_head:       db 0
+current_cylinder:   db 0
+sectors_to_read:    db 0
+
 msg_stage2:         db "Stage 2...", 0x0D, 0x0A, 0
 msg_loading_kernel: db "Loading kernel...", 0x0D, 0x0A, 0
-msg_disk_error:     db "Disk read error!", 0x0D, 0x0A, 0
+msg_ok:             db "OK", 0x0D, 0x0A, 0
+msg_disk_error:     db "Disk Error: ", 0
 
 ; =============================================================================
 ; GDT (Global Descriptor Table)
