@@ -139,4 +139,4 @@ jaredOS/
 ---
 
 ## 📜 License
-MIT License. Created by **Alexander Briant Tadiosa**.
+MIT License. Created by **Juicywoowowow*
