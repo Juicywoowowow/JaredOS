@@ -40,11 +40,15 @@ typedef int32_t ssize_t; /* Signed size type */
 /* =============================================================================
  * SECTION 2: Boolean Type
  * =============================================================================
+ * In C23, bool/true/false are built-in keywords, nothing to define here.
+ * For older compilers, uncomment the typedefs below.
  */
 
-typedef uint8_t bool;
+/* Uncomment for pre-C23 compilers:
+typedef unsigned char bool;
 #define true 1
 #define false 0
+*/
 
 /* =============================================================================
  * SECTION 3: NULL Pointer
