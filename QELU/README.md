@@ -16,7 +16,8 @@ QELU is a comprehensive Lua library suite that brings modern programming pattern
 - **qeluj.lua** - Robust JSON encoding/decoding with pretty printing and file I/O
 - **qelup.lua** - Python bridge for calling Python from Lua (requires C extension)
 
-All modules are written in pure Lua with minimal dependencies, optimized for LuaJIT.
+All modules are written in mostly Lua with dependencies, optimized for LuaJIT.
+
 
 ---
 
