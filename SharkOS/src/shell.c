@@ -58,6 +58,11 @@ static const command_t commands[] = {
     {"shutdown", "Halt the CPU",                      cmd_shutdown},
     {"calc",     "Calculator: calc (5 + 3)",          cmd_calc},
     {"colors",   "Show colors: colors [1-15]",        cmd_colors},
+    {"ls",       "List files",                        cmd_ls},
+    {"touch",    "Create empty file",                 cmd_touch},
+    {"cat",      "Print file content",                cmd_cat},
+    {"rm",       "Delete file",                       cmd_rm},
+    {"edit",     "Open text editor",                  cmd_edit},
     {NULL, NULL, NULL}  /* Terminator */
 };
 
@@ -446,6 +451,88 @@ void cmd_colors(int argc, char* argv[]) {
     
     vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
     vga_putchar('\n');
+}
+
+#include "fs.h"
+#include "editor.h"
+
+/* ----------------------------------------------------------------------------
+ * cmd_ls - List files
+ * ---------------------------------------------------------------------------- */
+void cmd_ls(int argc, char* argv[]) {
+    fs_list();
+}
+
+/* ----------------------------------------------------------------------------
+ * cmd_touch - Create empty file
+ * ---------------------------------------------------------------------------- */
+void cmd_touch(int argc, char* argv[]) {
+    if (argc < 2) {
+        vga_print("Usage: touch <filename>\n");
+        return;
+    }
+    
+    if (fs_create(argv[1])) {
+        vga_print("File created.\n");
+    } else {
+        vga_print("Error: Could not create file (already exists or FS full).\n");
+    }
+}
+
+/* ----------------------------------------------------------------------------
+ * cmd_cat - Print file content
+ * ---------------------------------------------------------------------------- */
+void cmd_cat(int argc, char* argv[]) {
+    static uint8_t buffer[512];
+    
+    if (argc < 2) {
+        vga_print("Usage: cat <filename>\n");
+        return;
+    }
+    
+    uint32_t size = fs_get_size(argv[1]);
+    if (size == 0 && fs_read_file(argv[1], buffer) == false) {
+         vga_print("Error: File not found.\n");
+         return;
+    }
+    
+    if (fs_read_file(argv[1], buffer)) {
+        /* Ensure null termination for printing */
+        if (size >= 512) size = 511;
+        buffer[size] = '\0';
+        vga_print((char*)buffer);
+        vga_print("\n");
+    } else {
+        vga_print("Error: Read failed.\n");
+    }
+}
+
+/* ----------------------------------------------------------------------------
+ * cmd_rm - Delete file
+ * ---------------------------------------------------------------------------- */
+void cmd_rm(int argc, char* argv[]) {
+    if (argc < 2) {
+        vga_print("Usage: rm <filename>\n");
+        return;
+    }
+    
+    if (fs_delete(argv[1])) {
+        vga_print("File deleted.\n");
+    } else {
+        vga_print("Error: File not found.\n");
+    }
+}
+
+/* ----------------------------------------------------------------------------
+ * cmd_edit - Open text editor
+ * ---------------------------------------------------------------------------- */
+void cmd_edit(int argc, char* argv[]) {
+    if (argc < 2) {
+        vga_print("Usage: edit <filename>\n");
+        return;
+    }
+    
+    editor_open(argv[1]);
 }
 
 /* ----------------------------------------------------------------------------

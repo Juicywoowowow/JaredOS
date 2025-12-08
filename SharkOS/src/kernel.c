@@ -27,6 +27,7 @@
 #include "shell.h"
 #include "memory.h"
 #include "string.h"
+#include "fs.h"
 
 /* ----------------------------------------------------------------------------
  * kernel_panic - Handle unrecoverable errors
@@ -116,6 +117,11 @@ void kernel_main(void) {
     vga_print(" OK ");
     vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
     vga_print("] Keyboard driver initialized (PS/2, US layout)\n");
+    
+    /* -------------------------------------------------------------------------
+     * Step 4: Initialize Filesystem
+     * ------------------------------------------------------------------------- */
+    fs_init();
     
     /* -------------------------------------------------------------------------
      * Step 4: Print system information

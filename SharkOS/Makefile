@@ -54,20 +54,26 @@ OUTPUT = shark.img
 all: $(OUTPUT)
 
 # Run in QEMU
-run: $(OUTPUT)
+run: $(OUTPUT) disk.img
 	@echo "[QEMU] Starting SharkOS..."
-	qemu-system-i386 -fda $(OUTPUT) -boot a
+	qemu-system-i386 -fda $(OUTPUT) -hda disk.img -boot a
 
 # Run with debug output
-debug: $(OUTPUT)
+debug: $(OUTPUT) disk.img
 	@echo "[QEMU] Starting SharkOS (debug mode)..."
-	qemu-system-i386 -fda $(OUTPUT) -boot a -d int,cpu_reset -no-reboot
+	qemu-system-i386 -fda $(OUTPUT) -hda disk.img -boot a -d int,cpu_reset -no-reboot
 
 # Clean build artifacts
 clean:
 	@echo "[CLEAN] Removing build artifacts..."
 	rm -rf $(BUILD_DIR)
 	rm -f $(OUTPUT)
+	rm -f disk.img
+
+# Create hard disk image (10MB)
+disk.img:
+	@echo "[IMG] Creating hard disk image..."
+	dd if=/dev/zero of=disk.img bs=1M count=10 2>/dev/null
 
 # ==============================================================================
 # Build process

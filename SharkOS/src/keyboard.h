@@ -28,4 +28,14 @@ void keyboard_readline(char* buffer, size_t size);
 /* Check if a key is available (non-blocking) */
 bool keyboard_has_key(void);
 
+/* Keyboard state structure */
+typedef struct {
+    bool shift_pressed;
+    bool ctrl_pressed;
+    bool alt_pressed;
+} keyboard_state_t;
+
+/* Get current keyboard state */
+keyboard_state_t keyboard_get_state(void);
+
 #endif /* KEYBOARD_H */

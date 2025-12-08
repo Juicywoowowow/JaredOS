@@ -77,15 +77,26 @@ static const char scancode_to_ascii_shift[] = {
 #define SCANCODE_LEFT_SHIFT_RELEASE 0xAA
 #define SCANCODE_RIGHT_SHIFT_PRESS  0x36
 #define SCANCODE_RIGHT_SHIFT_RELEASE 0xB6
+#define SCANCODE_LEFT_CTRL_PRESS    0x1D
+#define SCANCODE_LEFT_CTRL_RELEASE  0x9D
 
 /* Keyboard state */
 static bool shift_pressed = false;
+static bool ctrl_pressed = false;
+
+/* ----------------------------------------------------------------------------
+ * keyboard_get_state - Get current keyboard state
+ * ---------------------------------------------------------------------------- */
+keyboard_state_t keyboard_get_state(void) {
+    keyboard_state_t state;
+    state.shift_pressed = shift_pressed;
+    state.ctrl_pressed = ctrl_pressed;
+    state.alt_pressed = false; /* Not implemented yet */
+    return state;
+}
 
 /* ----------------------------------------------------------------------------
  * keyboard_init - Initialize keyboard driver
- *
- * For now, we just do a simple poll-based driver.
- * A real driver would set up IRQ1 interrupt handler.
  * ---------------------------------------------------------------------------- */
 void keyboard_init(void) {
     /* Flush the keyboard buffer */
@@ -94,6 +105,7 @@ void keyboard_init(void) {
     }
     
     shift_pressed = false;
+    ctrl_pressed = false;
 }
 
 /* ----------------------------------------------------------------------------
@@ -105,9 +117,6 @@ bool keyboard_has_key(void) {
 
 /* ----------------------------------------------------------------------------
  * keyboard_getchar - Read a single character (blocking)
- *
- * Blocks until a printable key is pressed.
- * Handles shift modifier for uppercase and symbols.
  * ---------------------------------------------------------------------------- */
 char keyboard_getchar(void) {
     uint8_t scancode;
@@ -116,7 +125,7 @@ char keyboard_getchar(void) {
     while (1) {
         /* Wait for key data to be available */
         while (!(inb(KEYBOARD_STATUS_PORT) & KEYBOARD_STATUS_OUTPUT_FULL)) {
-            /* Busy wait - in a real OS, we'd use interrupts */
+            /* Busy wait */
         }
         
         scancode = inb(KEYBOARD_DATA_PORT);
@@ -133,8 +142,19 @@ char keyboard_getchar(void) {
             shift_pressed = false;
             continue;
         }
+
+        /* Handle Control key state */
+        if (scancode == SCANCODE_LEFT_CTRL_PRESS) {
+            ctrl_pressed = true;
+            continue;
+        }
+
+        if (scancode == SCANCODE_LEFT_CTRL_RELEASE) {
+            ctrl_pressed = false;
+            continue;
+        }
         
-        /* Ignore key release events (high bit set) */
+        /* Ignore key release events */
         if (scancode & 0x80) {
             continue;
         }
@@ -145,6 +165,17 @@ char keyboard_getchar(void) {
                 c = scancode_to_ascii_shift[scancode];
             } else {
                 c = scancode_to_ascii[scancode];
+            }
+            
+            /* Apply Control modifier */
+            if (ctrl_pressed) {
+                /* Ctrl+A (1) to Ctrl+Z (26) */
+                if (c >= 'a' && c <= 'z') {
+                    return c - 'a' + 1;
+                }
+                if (c >= 'A' && c <= 'Z') {
+                    return c - 'A' + 1;
+                }
             }
             
             if (c != 0) {

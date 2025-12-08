@@ -39,5 +39,10 @@ void cmd_reboot(int argc, char* argv[]);
 void cmd_shutdown(int argc, char* argv[]);
 void cmd_calc(int argc, char* argv[]);
 void cmd_colors(int argc, char* argv[]);
+void cmd_ls(int argc, char* argv[]);
+void cmd_touch(int argc, char* argv[]);
+void cmd_cat(int argc, char* argv[]);
+void cmd_rm(int argc, char* argv[]);
+void cmd_edit(int argc, char* argv[]);
 
 #endif /* SHELL_H */
