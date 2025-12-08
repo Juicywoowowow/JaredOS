@@ -17,16 +17,6 @@ QELU is a comprehensive Lua library suite that brings modern programming pattern
 
 All modules are written in mostly Lua with dependencies, optimized for LuaJIT.
 
-Dependencies
-
-Python 2/3
-A C/C++ compiler like gcc or clang\n
-Lua:\n
-Luajit (optional, lua 5.4 is preferred for more features,)
-
-**Issues**
-QELU Flavors are resolved since they're isolated modules, they dont crash eachother except qeluj.lua which interact with
-the http module of QELU, easy to debug and trace easily.
 
 ---
 
