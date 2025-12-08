@@ -20,8 +20,8 @@ All modules are written in mostly Lua with dependencies, optimized for LuaJIT.
 Dependencies
 
 Python 2/3
-A C/C++ compiler like gcc or clang
-lua
+A C/C++ compiler like gcc or clang\n
+Lua:\n
 Luajit (optional, lua 5.4 is preferred for more features,)
 
 **Issues**
