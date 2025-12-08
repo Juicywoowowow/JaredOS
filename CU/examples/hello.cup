@@ -1,0 +1,38 @@
+// Example CU program
+
+import fn printf(i8* fmt, ...) -> i32;
+import fn malloc(u64 size) -> void*;
+import fn free(void* p) -> void;
+
+struct Point {
+    i32 x;
+    i32 y;
+}
+
+fn Point_new(i32 x, i32 y) -> Point {
+    Point p;
+    p.x = x;
+    p.y = y;
+    return p;
+}
+
+fn add(i32 a, i32 b) -> i32 {
+    return a + b;
+}
+
+fn main() -> i32 {
+    i32 result = add(5, 3);
+    printf("5 + 3 = %d\n", result);
+    
+    Point p = Point_new(10, 20);
+    printf("Point: (%d, %d)\n", p.x, p.y);
+    
+    i32* mem = cast(i32*) malloc(sizeof(i32));
+    if (mem != null) {
+        *mem = 42;
+        printf("Allocated value: %d\n", *mem);
+        free(mem);
+    }
+    
+    return 0;
+}

@@ -1,0 +1,26 @@
+[
+{
+  "directory": "/Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/build",
+  "command": "/usr/bin/c++  -I/Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/src -std=gnu++17 -arch arm64 -Wall -Wextra -Wpedantic -o CMakeFiles/cu.dir/src/main.cpp.o -c /Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/src/main.cpp",
+  "file": "/Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/src/main.cpp",
+  "output": "CMakeFiles/cu.dir/src/main.cpp.o"
+},
+{
+  "directory": "/Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/build",
+  "command": "/usr/bin/c++  -I/Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/src -std=gnu++17 -arch arm64 -Wall -Wextra -Wpedantic -o CMakeFiles/cu.dir/src/lexer.cpp.o -c /Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/src/lexer.cpp",
+  "file": "/Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/src/lexer.cpp",
+  "output": "CMakeFiles/cu.dir/src/lexer.cpp.o"
+},
+{
+  "directory": "/Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/build",
+  "command": "/usr/bin/c++  -I/Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/src -std=gnu++17 -arch arm64 -Wall -Wextra -Wpedantic -o CMakeFiles/cu.dir/src/parser.cpp.o -c /Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/src/parser.cpp",
+  "file": "/Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/src/parser.cpp",
+  "output": "CMakeFiles/cu.dir/src/parser.cpp.o"
+},
+{
+  "directory": "/Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/build",
+  "command": "/usr/bin/c++  -I/Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/src -std=gnu++17 -arch arm64 -Wall -Wextra -Wpedantic -o CMakeFiles/cu.dir/src/codegen.cpp.o -c /Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/src/codegen.cpp",
+  "file": "/Users/alexanderbrianttadiosa/Documents/GitHub/Waldey/CU/src/codegen.cpp",
+  "output": "CMakeFiles/cu.dir/src/codegen.cpp.o"
+}
+]

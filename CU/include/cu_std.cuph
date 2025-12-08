@@ -1,0 +1,85 @@
+// CU Standard Library Header (CU syntax)
+// Import this in your .cup files for portable utilities
+
+// Platform detection is automatic - these are defined by cu_std.h
+// PLATFORM_LINUX, PLATFORM_WINDOWS, PLATFORM_MACOS, PLATFORM_BSD, PLATFORM_WASM
+// ARCH_X86_64, ARCH_ARM64, ARCH_ARM32, ARCH_RISCV, ARCH_WASM
+// BIG_ENDIAN or LITTLE_ENDIAN
+
+// ============================================================================
+// Endianness Conversion
+// ============================================================================
+
+// Convert to/from big endian
+extern fn cu_be16(u16 x) -> u16;
+extern fn cu_be32(u32 x) -> u32;
+extern fn cu_be64(u64 x) -> u64;
+
+// Convert to/from little endian
+extern fn cu_le16(u16 x) -> u16;
+extern fn cu_le32(u32 x) -> u32;
+extern fn cu_le64(u64 x) -> u64;
+
+// Byte swap
+extern fn cu_bswap16(u16 x) -> u16;
+extern fn cu_bswap32(u32 x) -> u32;
+extern fn cu_bswap64(u64 x) -> u64;
+
+// ============================================================================
+// Memory Operations (No libc dependency)
+// ============================================================================
+
+extern fn cu_memcpy(void* dest, void* src, u64 n) -> void*;
+extern fn cu_memset(void* ptr, u8 value, u64 n) -> void*;
+extern fn cu_memcmp(void* a, void* b, u64 n) -> i32;
+
+// ============================================================================
+// String Operations
+// ============================================================================
+
+extern fn cu_strlen(i8* str) -> u64;
+extern fn cu_strcmp(i8* a, i8* b) -> i32;
+extern fn cu_strcpy(i8* dest, i8* src) -> i8*;
+extern fn cu_strcat(i8* dest, i8* src) -> i8*;
+
+// ============================================================================
+// Alignment Utilities
+// ============================================================================
+
+extern fn cu_is_aligned(void* ptr, u64 alignment) -> bool;
+extern fn cu_align_up(void* ptr, u64 alignment) -> void*;
+extern fn cu_align_down(void* ptr, u64 alignment) -> void*;
+
+// ============================================================================
+// Math Utilities
+// ============================================================================
+
+extern fn cu_abs_i32(i32 x) -> i32;
+extern fn cu_abs_i64(i64 x) -> i64;
+extern fn cu_min_i32(i32 a, i32 b) -> i32;
+extern fn cu_max_i32(i32 a, i32 b) -> i32;
+extern fn cu_min_u32(u32 a, u32 b) -> u32;
+extern fn cu_max_u32(u32 a, u32 b) -> u32;
+
+// ============================================================================
+// Bit Manipulation
+// ============================================================================
+
+extern fn cu_popcount32(u32 x) -> u32;  // Count set bits
+extern fn cu_clz32(u32 x) -> u32;       // Count leading zeros
+extern fn cu_ctz32(u32 x) -> u32;       // Count trailing zeros
+
+// ============================================================================
+// Platform Information
+// ============================================================================
+
+struct cu_platform_info {
+    u64 pointer_size;
+    u64 pointer_align;
+    bool is_little_endian;
+    bool is_big_endian;
+    i8* platform_name;
+    i8* arch_name;
+}
+
+extern fn cu_get_platform_info() -> cu_platform_info;
