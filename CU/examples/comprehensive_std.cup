@@ -1,0 +1,116 @@
+import fn printf(const i8* fmt, ...) -> i32;
+
+// --- Imports (mapped to cu_std.h static inlines via compiler magic) ---
+
+// Platform
+struct PlatformInfo {
+    u64 pointer_size;
+    u64 pointer_align;
+    bool is_little_endian;
+    bool is_big_endian;
+    const i8* platform_name;
+    const i8* arch_name;
+}
+import fn cu_get_platform_info() -> PlatformInfo;
+
+// Endianness
+import fn cu_bswap16(u16 x) -> u16;
+import fn cu_bswap32(u32 x) -> u32;
+import fn cu_bswap64(u64 x) -> u64;
+import fn cu_be32(u32 x) -> u32;
+import fn cu_le32(u32 x) -> u32;
+
+// Memory
+import fn cu_memcpy(void* dest, const void* src, u64 n) -> void*;
+import fn cu_memset(void* s, i32 c, u64 n) -> void*;
+import fn cu_memcmp(const void* s1, const void* s2, u64 n) -> i32;
+
+// Strings
+import fn cu_strlen(const i8* s) -> u64;
+import fn cu_strcmp(const i8* s1, const i8* s2) -> i32;
+import fn cu_strcpy(i8* dest, const i8* src) -> i8*;
+import fn cu_strcat(i8* dest, const i8* src) -> i8*;
+
+// Math
+import fn cu_abs_i32(i32 x) -> i32;
+import fn cu_max_i32(i32 a, i32 b) -> i32;
+import fn cu_min_i32(i32 a, i32 b) -> i32;
+
+// Bits
+import fn cu_popcount32(u32 x) -> u32;
+import fn cu_clz32(u32 x) -> u32; // Count leading zeros
+import fn cu_ctz32(u32 x) -> u32; // Count trailing zeros
+
+fn main() -> i32 {
+    printf("--- CU STD Comprehensive Test ---\n\n");
+
+    // 1. Platform Information
+    PlatformInfo info = cu_get_platform_info();
+    printf("[Platform]\n");
+    printf("  OS:           %s\n", info.platform_name);
+    printf("  Arch:         %s\n", info.arch_name);
+    printf("  Ptr Size:     %llu bytes\n", info.pointer_size);
+    printf("  Ptr Align:    %llu bytes\n", info.pointer_align);
+    printf("  Endianness:   %s\n", info.is_little_endian ? "Little" : "Big");
+
+    // 2. Endianness
+    printf("\n[Endianness]\n");
+    u32 val = 0xDEADBEEF;
+    printf("  Original:     0x%08X\n", val);
+    printf("  Swap32:       0x%08X\n", cu_bswap32(val));
+    printf("  As BigEnd:    0x%08X\n", cu_be32(val)); 
+    printf("  As LitEnd:    0x%08X\n", cu_le32(val));
+
+    // 3. String Operations
+    printf("\n[Strings]\n");
+    i8[32] buffer;
+    cu_memset(buffer, 0, 32); // Clear buffer
+    
+    cu_strcpy(buffer, "Hello");
+    printf("  After cpy:    '%s'\n", buffer);
+    
+    cu_strcat(buffer, ", World!");
+    printf("  After cat:    '%s'\n", buffer);
+    
+    u64 len = cu_strlen(buffer);
+    printf("  Length:       %llu\n", len);
+    
+    i32 cmp = cu_strcmp(buffer, "Hello, World!");
+    printf("  Cmp (equal):  %d\n", cmp);
+    
+    cmp = cu_strcmp(buffer, "Different");
+    printf("  Cmp (diff):   %d\n", cmp);
+
+    // 4. Memory Operations
+    printf("\n[Memory]\n");
+    i32[5] arr1 = {1, 2, 3, 4, 5};
+    i32[5] arr2;
+    // Copy array
+    cu_memcpy(arr2, arr1, sizeof(i32) * 5);
+    
+    i32 mem_diff = cu_memcmp(arr1, arr2, sizeof(i32) * 5);
+    printf("  MemCmp(eq):   %d\n", mem_diff);
+    
+    arr2[2] = 99; // Change one values
+    mem_diff = cu_memcmp(arr1, arr2, sizeof(i32) * 5);
+    printf("  MemCmp(diff): %d\n", mem_diff);
+
+    // 5. Math & Bits
+    printf("\n[Math & Bits]\n");
+    i32 neg = -42;
+    printf("  Abs(-42):     %d\n", cu_abs_i32(neg));
+    printf("  Max(10, 20):  %d\n", cu_max_i32(10, 20));
+    printf("  Min(10, 20):  %d\n", cu_min_i32(10, 20));
+    
+    u32 bits = 0xF0000001; // 1111 ... 0001
+    printf("  Value:        0x%08X\n", bits);
+    printf("  Popcount:     %u\n", cu_popcount32(bits)); // Should be 5
+    printf("  CLZ (lead 0): %u\n", cu_clz32(bits));      // Should be 0
+    printf("  CTZ (trail 0):%u\n", cu_ctz32(bits));      // Should be 0, wait bit 0 is 1. 0 trailing zeros.
+    
+    u32 bits2 = 0x00000008; // ... 1000
+    printf("  Value2:       0x%08X\n", bits2);
+    printf("  CTZ2:         %u\n", cu_ctz32(bits2));     // Should be 3
+    
+    return 0;
+}

@@ -13,7 +13,7 @@ const std::unordered_set<std::string> cu_std_functions = {
     "cu_abs_i32", "cu_abs_i64",
     "cu_min_i32", "cu_max_i32", "cu_min_u32", "cu_max_u32",
     "cu_popcount32", "cu_clz32", "cu_ctz32",
-    "cu_get_platform_info",
+    "cu_get_platform_info", "cu_get_platform_info_ptr",
     // Standard library functions included via cu_std.h
     "printf", "malloc", "free", "calloc", "realloc", "puts", "exit", "abort"
 };

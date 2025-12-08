@@ -342,6 +342,10 @@ static inline cu_platform_info cu_get_platform_info(void) {
     info.is_big_endian = true;
 #endif
 
+static inline void cu_get_platform_info_ptr(cu_platform_info* out) {
+    if (out) *out = cu_get_platform_info();
+}
+
 #ifdef PLATFORM_LINUX
     info.platform_name = "Linux";
 #elif defined(PLATFORM_WINDOWS)
