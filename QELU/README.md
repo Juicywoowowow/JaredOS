@@ -1,6 +1,6 @@
 # QELU - Quality Enhanced Lua Utilities
 
-> A comprehensive Lua standard library with OOP, Testing, HTTP, String, Table, and JSON utilities
+> A comprehensive Lua standard library with OOP, Testing, HTTP, String, Table, JSON, and Python bridge
 
 [![Lua](https://img.shields.io/badge/Lua-5.1%2B-blue.svg)](https://www.lua.org/)
 [![LuaJIT](https://img.shields.io/badge/LuaJIT-2.0%2B-orange.svg)](https://luajit.org/)
@@ -14,6 +14,7 @@ QELU is a comprehensive Lua library suite that brings modern programming pattern
 - **qels.lua** - Advanced string utilities (split, trim, case conversion, templates, etc.)
 - **qelut.lua** - Table utilities (map, filter, reduce, deep operations, functional programming)
 - **qeluj.lua** - Robust JSON encoding/decoding with pretty printing and file I/O
+- **qelup.lua** - Python bridge for calling Python from Lua (requires C extension)
 
 All modules are written in pure Lua with minimal dependencies, optimized for LuaJIT.
 
@@ -29,6 +30,7 @@ All modules are written in pure Lua with minimal dependencies, optimized for Lua
 - [QELS String Utilities](#qels-string-utilities)
 - [QELUT Table Utilities](#qelut-table-utilities)
 - [QELUJ JSON Library](#qeluj-json-library)
+- [QELUP Python Bridge](#qelup-python-bridge)
 - [API Reference](#api-reference)
 - [License](#license)
 
@@ -866,6 +868,255 @@ json.prettify('{"a":1,"b":2}')
 - ✅ Strict mode for validation
 - ✅ Maximum depth protection
 
+
+---
+
+## QELUP Python Bridge
+
+Call Python code from Lua and access the entire Python ecosystem.
+
+### Installation
+
+QELUP requires building a C extension:
+
+```bash
+# Install dependencies
+# macOS:
+brew install python3
+
+# Ubuntu/Debian:
+sudo apt-get install python3-dev lua5.4-dev build-essential
+
+# Build
+cd QELU
+make
+
+# (Optional) Install
+make install
+```
+
+### Basic Usage
+
+```lua
+local py = require("qelup")
+
+-- Initialize Python (auto-detects Python 2 or 3)
+py.initialize()
+
+-- Import modules
+local sys = py.import("sys")
+local os = py.import("os")
+
+print("Python version:", sys.version)
+print("Current directory:", os.getcwd())
+
+-- Execute Python code
+py.exec([[
+def greet(name):
+    return f"Hello, {name}!"
+]])
+
+-- Call Python functions
+local greet = py.eval("greet")
+print(greet("Lua"))  -- "Hello, Lua!"
+
+-- Cleanup (optional, happens automatically)
+py.finalize()
+```
+
+### Importing Modules
+
+```lua
+-- Standard library
+local json = py.import("json")
+local math = py.import("math")
+local datetime = py.import("datetime")
+
+-- Third-party (if installed)
+local numpy = py.import("numpy")
+local pandas = py.import("pandas")
+local requests = py.import("requests")
+```
+
+### Type Conversion
+
+Automatic conversion between Lua and Python types:
+
+| Lua Type | Python Type |
+|----------|-------------|
+| `nil` | `None` |
+| `boolean` | `bool` |
+| `number` | `int` or `float` |
+| `string` | `str` |
+| `table` (array) | `list` |
+| `table` (dict) | `dict` |
+
+```lua
+-- Lua to Python
+py.exec("data = None")  -- nil → None
+local result = py.eval("data")  -- None → nil
+
+-- Arrays
+local arr = {1, 2, 3, 4, 5}
+py.exec("arr = " .. py.JSON.encode(arr))
+
+-- Dictionaries
+local dict = {name = "John", age = 30}
+-- Converted automatically when passed to Python
+```
+
+### Calling Python Functions
+
+```lua
+-- Define Python function
+py.exec([[
+def add(a, b):
+    return a + b
+
+def multiply(a, b):
+    return a * b
+]])
+
+-- Call from Lua
+local add = py.eval("add")
+local result = add(5, 3)  -- 8
+
+-- Chain calls
+local math = py.import("math")
+local sqrt = math.sqrt(16)  -- 4.0
+```
+
+### Using Python Classes
+
+```lua
+py.exec([[
+class Calculator:
+    def __init__(self, initial=0):
+        self.value = initial
+    
+    def add(self, x):
+        self.value += x
+        return self.value
+    
+    def get(self):
+        return self.value
+]])
+
+local Calculator = py.eval("Calculator")
+local calc = Calculator(10)
+print(calc:add(5))   -- 15
+print(calc:add(3))   -- 18
+print(calc:get())    -- 18
+```
+
+### Working with NumPy
+
+```lua
+local np = py.import("numpy")
+
+-- Create array
+local arr = np.array({1, 2, 3, 4, 5})
+
+-- Operations
+local mean = np.mean(arr)
+local std = np.std(arr)
+local sum = np.sum(arr)
+
+print("Mean:", mean)
+print("Std:", std)
+print("Sum:", sum)
+
+-- Matrix operations
+local matrix = np.array({{1, 2}, {3, 4}})
+local det = np.linalg.det(matrix)
+print("Determinant:", det)
+```
+
+### Working with pandas
+
+```lua
+local pd = py.import("pandas")
+
+-- Create DataFrame
+py.exec([[
+import pandas as pd
+df = pd.DataFrame({
+    'name': ['Alice', 'Bob', 'Charlie'],
+    'age': [25, 30, 35],
+    'city': ['NYC', 'LA', 'Chicago']
+})
+]])
+
+local df = py.eval("df")
+
+-- Access data
+print(df:head())
+print("Mean age:", df.age:mean())
+```
+
+### Error Handling
+
+```lua
+-- Use pcall for error handling
+local ok, result = py.pcall(function()
+    return py.eval("1 / 0")  -- Division by zero
+end)
+
+if not ok then
+    print("Python error:", result)
+end
+
+-- Or use Lua's pcall
+local ok, result = pcall(function()
+    local bad_module = py.import("nonexistent_module")
+end)
+
+if not ok then
+    print("Import failed:", result)
+end
+```
+
+### Convenience Functions
+
+```lua
+-- Quick module access
+local sys = py.sys()
+local os = py.os()
+local json = py.json()
+local math = py.math()
+local datetime = py.datetime()
+
+-- Check if module exists
+if py.hasModule("numpy") then
+    local np = py.import("numpy")
+end
+
+-- Get Python version
+local version = py.version()
+print("Python", version.major .. "." .. version.minor)
+
+-- List available modules
+local modules = py.listModules()
+for _, name in ipairs(modules) do
+    print(name)
+end
+```
+
+### Known Issues
+
+- **Segfault on finalize**: Calling `py.finalize()` may cause a segmentation fault on some systems. This is a known issue with Python's `Py_Finalize()`. The Python interpreter is automatically cleaned up when the Lua process exits, so calling `finalize()` is optional.
+
+- **Thread safety**: QELUP is not thread-safe. Use only from the main Lua thread.
+
+- **Memory management**: Python objects are automatically garbage collected when no longer referenced from Lua.
+
+### Dependencies
+
+- **Python 2.7+** or **Python 3.x**
+- **Python development headers** (`python-dev` or `python3-dev`)
+- **Lua 5.1+** or **LuaJIT**
+- **C compiler** (gcc, clang)
+
 ---
 
 ## API Reference
@@ -947,5 +1198,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 - ✅ **qels.lua** (18KB) - String Utilities
 - ✅ **qelut.lua** (15KB) - Table Utilities
 - ✅ **qeluj.lua** (13KB) - JSON Library
+- ✅ **qelup.lua** + **bindings/qelup.c** - Python Bridge (C extension)
 
 Made with ❤️ for the Lua community
