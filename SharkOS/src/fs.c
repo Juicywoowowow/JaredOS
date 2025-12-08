@@ -185,3 +185,10 @@ uint32_t fs_get_size(const char* name) {
     if (idx == -1) return 0;
     return sb.files[idx].size;
 }
+
+/* ----------------------------------------------------------------------------
+ * fs_exists - Check if file exists
+ * ---------------------------------------------------------------------------- */
+bool fs_exists(const char* name) {
+    return fs_find_file(name) != -1;
+}

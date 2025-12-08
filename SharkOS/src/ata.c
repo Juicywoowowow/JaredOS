@@ -91,6 +91,7 @@ void ata_read_sector(uint32_t lba, uint8_t* buffer) {
  * but kept for future partial updates if needed.
  * ---------------------------------------------------------------------------- */
 void ata_write_sector(uint32_t lba, uint8_t* buffer, size_t size) {
+    (void)size; /* Unused parameter */
     ata_wait_busy();
     
     /* Send LBA28 parameters */

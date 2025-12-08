@@ -136,7 +136,7 @@ static void insert_char(char c) {
 static bool handle_command(void) {
     if (strcmp(cmd_buffer, "w") == 0) {
         /* Save */
-        if (fs_find_file(current_filename) != -1) {
+        if (fs_exists(current_filename)) {
             fs_delete(current_filename); /* Overwrite */
         }
         
@@ -152,7 +152,7 @@ static bool handle_command(void) {
         return true;
     } else if (strcmp(cmd_buffer, "wq") == 0) {
         /* Save and Quit */
-        if (fs_find_file(current_filename) != -1) {
+        if (fs_exists(current_filename)) {
             fs_delete(current_filename);
         }
         if (fs_create(current_filename)) {
@@ -175,7 +175,7 @@ void editor_open(const char* filename) {
     strcpy(current_filename, filename);
     
     /* Load existing file if present */
-    if (fs_find_file(filename) != -1) {
+    if (fs_exists(filename)) {
         fs_read_file(filename, (uint8_t*)buffer);
         content_len = fs_get_size(filename);
         buffer[content_len] = '\0';

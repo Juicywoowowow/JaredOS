@@ -60,4 +60,7 @@ bool fs_read_file(const char* name, uint8_t* buffer);
 /* Get file size */
 uint32_t fs_get_size(const char* name);
 
+/* Check if file exists */
+bool fs_exists(const char* name);
+
 #endif /* FS_H */
