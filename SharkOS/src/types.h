@@ -42,11 +42,21 @@ typedef int32_t             ssize_t;    /* Signed size (for error returns) */
 
 /* ----------------------------------------------------------------------------
  * Boolean type
- * Note: In C89, we don't have _Bool, so we use int
+ * Note: In C23, bool is a keyword. We use a #ifndef guard for compatibility.
+ * For older standards, we define bool as int.
  * ---------------------------------------------------------------------------- */
-typedef int                 bool;
-#define true                1
-#define false               0
+#ifndef __bool_true_false_are_defined
+#define __bool_true_false_are_defined 1
+#ifndef bool
+#define bool    int
+#endif
+#ifndef true
+#define true    1
+#endif
+#ifndef false
+#define false   0
+#endif
+#endif
 
 /* ----------------------------------------------------------------------------
  * Null pointer
