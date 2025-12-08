@@ -219,7 +219,7 @@ void editor_open(const char* filename) {
                     draw_status_bar(NULL);
                 } else {
                     mode = MODE_NORMAL; /* Backspace empty cmd -> Normal */
-                    draw_status_bar(NULL);
+                    refresh_screen(); /* Redraw content with correct colors */
                 }
             } else {
                 if (cmd_len < 30) {
