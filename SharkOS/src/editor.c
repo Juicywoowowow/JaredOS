@@ -237,7 +237,7 @@ void editor_open(const char* filename) {
         if (mode == MODE_INSERT) {
             if (c == 27) { /* ESC */
                 mode = MODE_NORMAL;
-                draw_status_bar(NULL);
+                refresh_screen(); /* Redraw content with correct colors */
             } else if (c == '\b') {
                 /* Backspace (simplified: just remove last char from buffer) */
                 if (content_len > 0) {
