@@ -86,13 +86,22 @@ static void draw_status_bar(const char* message) {
     }
     
     vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK); /* Restore default */
-    vga_set_cursor(cursor_x, cursor_y);
+    
+    /* In command mode, keep cursor on the status line after the command text */
+    if (mode == MODE_COMMAND) {
+        /* Position cursor after ':' and command text on status line */
+        vga_set_cursor(1 + cmd_len, STATUS_LINE);
+    } else {
+        vga_set_cursor(cursor_x, cursor_y);
+    }
 }
 
 /* ----------------------------------------------------------------------------
  * refresh_screen - Redraw buffer content
  * ---------------------------------------------------------------------------- */
 static void refresh_screen(void) {
+    /* Ensure we're using the correct text color (light grey/white on black) */
+    vga_set_color(VGA_COLOR_WHITE, VGA_COLOR_BLACK);
     vga_clear();
     
     /* For simplicity, we just print the raw buffer.
