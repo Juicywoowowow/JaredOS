@@ -108,145 +108,82 @@ QELUHttp.config = {
 }
 
 -- ============================================================================
--- JSON Encoding/Decoding (Simple implementation)
+-- JSON Support (using QELUJ)
 -- ============================================================================
 
-local JSON = {}
+-- Try to load qeluj, fall back to basic implementation if not available
+local JSON
+local qeluj_available, qeluj = pcall(require, "qeluj")
 
-function JSON.encode(value)
-    local t = type(value)
+if qeluj_available then
+    JSON = qeluj
+else
+    -- Basic fallback JSON implementation
+    JSON = {}
     
-    if t == "nil" then
-        return "null"
-    elseif t == "boolean" then
-        return value and "true" or "false"
-    elseif t == "number" then
-        return tostring(value)
-    elseif t == "string" then
-        -- Escape special characters
-        local escaped = value:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n"):gsub("\r", "\\r"):gsub("\t", "\\t")
-        return '"' .. escaped .. '"'
-    elseif t == "table" then
-        -- Detect if table is an array
-        local isArray = true
-        local n = 0
-        for k, _ in pairs(value) do
-            n = n + 1
-            if type(k) ~= "number" or k ~= math.floor(k) or k < 1 or k > n then
-                isArray = false
-                break
-            end
-        end
+    function JSON.encode(value)
+        local t = type(value)
         
-        if isArray and n > 0 then
-            -- Encode as array
-            local parts = {}
-            for i = 1, n do
-                parts[#parts + 1] = JSON.encode(value[i])
-            end
-            return "[" .. table.concat(parts, ",") .. "]"
-        else
-            -- Encode as object
-            local parts = {}
-            for k, v in pairs(value) do
-                local key = '"' .. tostring(k) .. '"'
-                parts[#parts + 1] = key .. ":" .. JSON.encode(v)
-            end
-            return "{" .. table.concat(parts, ",") .. "}"
-        end
-    else
-        error("Cannot encode type: " .. t)
-    end
-end
-
-function JSON.decode(str)
-    str = str:gsub("^%s*(.-)%s*$", "%1") -- trim
-    
-    -- null
-    if str == "null" then return nil end
-    
-    -- boolean
-    if str == "true" then return true end
-    if str == "false" then return false end
-    
-    -- number
-    local num = tonumber(str)
-    if num then return num end
-    
-    -- string
-    if str:sub(1, 1) == '"' then
-        return str:sub(2, -2):gsub("\\(.)", {
-            n = "\n", t = "\t", r = "\r", ["\\"] = "\\", ['"'] = '"'
-        })
-    end
-    
-    -- array
-    if str:sub(1, 1) == "[" then
-        local arr = {}
-        local content = str:sub(2, -2)
-        local depth = 0
-        local current = ""
-        
-        for i = 1, #content do
-            local c = content:sub(i, i)
-            if c == "[" or c == "{" then
-                depth = depth + 1
-                current = current .. c
-            elseif c == "]" or c == "}" then
-                depth = depth - 1
-                current = current .. c
-            elseif c == "," and depth == 0 then
-                table.insert(arr, JSON.decode(current))
-                current = ""
-            else
-                current = current .. c
-            end
-        end
-        
-        if current ~= "" then
-            table.insert(arr, JSON.decode(current))
-        end
-        
-        return arr
-    end
-    
-    -- object
-    if str:sub(1, 1) == "{" then
-        local obj = {}
-        local content = str:sub(2, -2)
-        local depth = 0
-        local current = ""
-        
-        for i = 1, #content do
-            local c = content:sub(i, i)
-            if c == "[" or c == "{" then
-                depth = depth + 1
-                current = current .. c
-            elseif c == "]" or c == "}" then
-                depth = depth - 1
-                current = current .. c
-            elseif c == "," and depth == 0 then
-                local key, value = current:match('^%s*"(.-)"%s*:%s*(.+)%s*$')
-                if key and value then
-                    obj[key] = JSON.decode(value)
+        if t == "nil" then
+            return "null"
+        elseif t == "boolean" then
+            return value and "true" or "false"
+        elseif t == "number" then
+            return tostring(value)
+        elseif t == "string" then
+            local escaped = value:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\n", "\\n"):gsub("\r", "\\r"):gsub("\t", "\\t")
+            return '"' .. escaped .. '"'
+        elseif t == "table" then
+            local isArray = true
+            local n = 0
+            for k, _ in pairs(value) do
+                n = n + 1
+                if type(k) ~= "number" or k ~= math.floor(k) or k < 1 or k > n then
+                    isArray = false
+                    break
                 end
-                current = ""
+            end
+            
+            if isArray and n > 0 then
+                local parts = {}
+                for i = 1, n do
+                    parts[#parts + 1] = JSON.encode(value[i])
+                end
+                return "[" .. table.concat(parts, ",") .. "]"
             else
-                current = current .. c
+                local parts = {}
+                for k, v in pairs(value) do
+                    local key = '"' .. tostring(k) .. '"'
+                    parts[#parts + 1] = key .. ":" .. JSON.encode(v)
+                end
+                return "{" .. table.concat(parts, ",") .. "}"
             end
+        else
+            error("Cannot encode type: " .. t)
         end
-        
-        if current ~= "" then
-            local key, value = current:match('^%s*"(.-)"%s*:%s*(.+)%s*$')
-            if key and value then
-                obj[key] = JSON.decode(value)
-            end
-        end
-        
-        return obj
     end
     
-    error("Invalid JSON: " .. str)
+    function JSON.decode(str)
+        -- Very basic JSON decoder (for fallback only)
+        str = str:gsub("^%s*(.-)%s*$", "%1")
+        
+        if str == "null" then return nil end
+        if str == "true" then return true end
+        if str == "false" then return false end
+        
+        local num = tonumber(str)
+        if num then return num end
+        
+        if str:sub(1, 1) == '"' then
+            return str:sub(2, -2):gsub("\\(.)", {
+                n = "\n", t = "\t", r = "\r", ["\\"] = "\\", ['"'] = '"'
+            })
+        end
+        
+        -- For complex structures, this is very limited
+        -- Recommend using qeluj for proper JSON support
+        error("Complex JSON requires qeluj module")
+    end
 end
 
 -- ============================================================================

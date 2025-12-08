@@ -1,6 +1,6 @@
 # QELU - Quality Enhanced Lua Utilities
 
-> A comprehensive Lua standard library with OOP, Testing, HTTP, and String utilities
+> A comprehensive Lua standard library with OOP, Testing, HTTP, String, Table, and JSON utilities
 
 [![Lua](https://img.shields.io/badge/Lua-5.1%2B-blue.svg)](https://www.lua.org/)
 [![LuaJIT](https://img.shields.io/badge/LuaJIT-2.0%2B-orange.svg)](https://luajit.org/)
@@ -12,6 +12,8 @@ QELU is a comprehensive Lua library suite that brings modern programming pattern
 - **qelutest.lua** - Professional testing framework with rich matchers
 - **qeluhttp.lua** - HTTP client for making REST API requests (curl-like)
 - **qels.lua** - Advanced string utilities (split, trim, case conversion, templates, etc.)
+- **qelut.lua** - Table utilities (map, filter, reduce, deep operations, functional programming)
+- **qeluj.lua** - Robust JSON encoding/decoding with pretty printing and file I/O
 
 All modules are written in pure Lua with minimal dependencies, optimized for LuaJIT.
 
@@ -25,6 +27,8 @@ All modules are written in pure Lua with minimal dependencies, optimized for Lua
 - [QELUTest Framework](#qelutest-framework)
 - [QELUHttp Client](#qeluhttp-client)
 - [QELS String Utilities](#qels-string-utilities)
+- [QELUT Table Utilities](#qelut-table-utilities)
+- [QELUJ JSON Library](#qeluj-json-library)
 - [API Reference](#api-reference)
 - [License](#license)
 
@@ -680,6 +684,188 @@ str.random(8, "0123456789")            -- Random 8-digit number
 str.uuid()                             -- "550e8400-e29b-41d4-a716-446655440000"
 ```
 
+```
+
+---
+
+## QELUT Table Utilities
+
+Functional programming and advanced table operations for Lua.
+
+### Deep Operations
+
+```lua
+local t = require("qelut")
+
+-- Deep copy
+local copy = t.deepCopy(originalTable)
+
+-- Deep merge
+local merged = t.deepMerge(table1, table2, table3)
+
+-- Deep equality
+t.deepEqual(table1, table2)  -- true/false
+```
+
+### Functional Programming
+
+```lua
+-- Map
+local doubled = t.map({1, 2, 3}, function(x) return x * 2 end)  -- {2, 4, 6}
+
+-- Filter
+local evens = t.filter({1, 2, 3, 4}, function(x) return x % 2 == 0 end)  -- {2, 4}
+
+-- Reduce
+local sum = t.reduce({1, 2, 3, 4}, function(acc, x) return acc + x end, 0)  -- 10
+
+-- Find
+local value, index = t.find({1, 2, 3}, function(x) return x > 1 end)  -- 2, 2
+
+-- Some/Every
+t.some({1, 2, 3}, function(x) return x > 2 end)   -- true
+t.every({1, 2, 3}, function(x) return x > 0 end)  -- true
+```
+
+### Array Operations
+
+```lua
+t.flatten({{1, 2}, {3, 4}})              -- {1, 2, 3, 4}
+t.unique({1, 2, 2, 3, 3})                -- {1, 2, 3}
+t.reverse({1, 2, 3})                     -- {3, 2, 1}
+t.shuffle({1, 2, 3, 4, 5})               -- Random order
+t.chunk({1, 2, 3, 4, 5}, 2)              -- {{1, 2}, {3, 4}, {5}}
+t.zip({1, 2}, {"a", "b"})                -- {{1, "a"}, {2, "b"}}
+t.slice({1, 2, 3, 4, 5}, 2, 4)           -- {2, 3, 4}
+t.take({1, 2, 3, 4, 5}, 3)               -- {1, 2, 3}
+t.drop({1, 2, 3, 4, 5}, 2)               -- {3, 4, 5}
+```
+
+### Object Operations
+
+```lua
+t.keys({a = 1, b = 2})                   -- {"a", "b"}
+t.values({a = 1, b = 2})                 -- {1, 2}
+t.entries({a = 1, b = 2})                -- {{"a", 1}, {"b", 2}}
+t.pick({a = 1, b = 2, c = 3}, {"a", "c"}) -- {a = 1, c = 3}
+t.omit({a = 1, b = 2, c = 3}, {"b"})     -- {a = 1, c = 3}
+t.invert({a = 1, b = 2})                 -- {[1] = "a", [2] = "b"}
+t.merge({a = 1}, {b = 2}, {c = 3})       -- {a = 1, b = 2, c = 3}
+```
+
+### Path-based Access
+
+```lua
+local data = {user = {name = "John", age = 30}}
+
+t.get(data, "user.name")                 -- "John"
+t.get(data, "user.email", "N/A")         -- "N/A" (default)
+t.set(data, "user.email", "john@example.com")
+t.has(data, "user.name")                 -- true
+```
+
+### Set Operations
+
+```lua
+t.difference({1, 2, 3}, {2, 3, 4})       -- {1}
+t.intersection({1, 2, 3}, {2, 3, 4})     -- {2, 3}
+t.union({1, 2}, {2, 3}, {3, 4})          -- {1, 2, 3, 4}
+```
+
+---
+
+## QELUJ JSON Library
+
+Robust JSON encoding and decoding for Lua.
+
+### Encoding
+
+```lua
+local json = require("qeluj")
+
+-- Basic encoding
+local str = json.encode({name = "John", age = 30})
+-- {"name":"John","age":30}
+
+-- Pretty printing
+local pretty = json.encodePretty({
+    name = "John",
+    tags = {"developer", "lua"}
+})
+--[[
+{
+  "name": "John",
+  "tags": [
+    "developer",
+    "lua"
+  ]
+}
+]]
+
+-- Custom options
+json.encode(data, {
+    pretty = true,
+    indent = "    ",  -- 4 spaces
+    strict = true
+})
+```
+
+### Decoding
+
+```lua
+local data = json.decode('{"name":"John","age":30}')
+print(data.name)  -- John
+print(data.age)   -- 30
+
+-- With options
+json.decode(str, {
+    strict = true,
+    nullValue = false  -- Use false instead of nil for null
+})
+```
+
+### File I/O
+
+```lua
+-- Write JSON to file
+json.encodeFile(data, "output.json")
+json.encodeFile(data, "pretty.json", {pretty = true})
+
+-- Read JSON from file
+local data = json.decodeFile("input.json")
+```
+
+### Utilities
+
+```lua
+-- Validate JSON
+json.isValid('{"valid": true}')          -- true
+json.isValid('{invalid}')                -- false
+
+-- Minify JSON
+json.minify('{ "a" : 1 , "b" : 2 }')     -- {"a":1,"b":2}
+
+-- Prettify JSON
+json.prettify('{"a":1,"b":2}')
+--[[
+{
+  "a": 1,
+  "b": 2
+}
+]]
+```
+
+### Features
+
+- ✅ Handles nested structures
+- ✅ Proper array vs object detection
+- ✅ Escape sequences (\\n, \\t, \\", etc.)
+- ✅ Unicode support (basic)
+- ✅ NaN/Infinity handling
+- ✅ Configurable null values
+- ✅ Strict mode for validation
+- ✅ Maximum depth protection
+
 ---
 
 ## API Reference
@@ -757,7 +943,9 @@ MIT License - see [LICENSE](LICENSE) for details.
 **QELU Suite:**
 - ✅ **qelu.lua** (25KB) - OOP System
 - ✅ **qelutest.lua** (31KB) - Testing Framework  
-- ✅ **qeluhttp.lua** (16KB) - HTTP Client
-- ✅ **qels.lua** (21KB) - String Utilities
+- ✅ **qeluhttp.lua** (15KB) - HTTP Client
+- ✅ **qels.lua** (18KB) - String Utilities
+- ✅ **qelut.lua** (15KB) - Table Utilities
+- ✅ **qeluj.lua** (13KB) - JSON Library
 
 Made with ❤️ for the Lua community
