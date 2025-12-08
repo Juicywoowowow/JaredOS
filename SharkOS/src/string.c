@@ -120,6 +120,27 @@ char* strchr(const char* str, int c) {
 }
 
 /*
+ * strrchr - Find last occurrence of character in string
+ *
+ * Searches from the end of the string backwards.
+ */
+char* strrchr(const char* str, int c) {
+    const char* last = NULL;
+    
+    while (*str != '\0') {
+        if (*str == (char)c) {
+            last = str;
+        }
+        str++;
+    }
+    /* Check if we're looking for the null terminator */
+    if ((char)c == '\0') {
+        return (char*)str;
+    }
+    return (char*)last;
+}
+
+/*
  * strstr - Find first occurrence of needle in haystack
  *
  * Returns pointer to start of match, or NULL if not found.

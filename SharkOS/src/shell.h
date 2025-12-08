@@ -44,5 +44,6 @@ void cmd_touch(int argc, char* argv[]);
 void cmd_cat(int argc, char* argv[]);
 void cmd_rm(int argc, char* argv[]);
 void cmd_edit(int argc, char* argv[]);
+void cmd_write(int argc, char* argv[]);
 
 #endif /* SHELL_H */

@@ -51,6 +51,12 @@ char* strcat(char* dest, const char* src);
 char* strchr(const char* str, int c);
 
 /* ----------------------------------------------------------------------------
+ * strrchr - Find last occurrence of character in string
+ * @return: Pointer to character, or NULL if not found
+ * ---------------------------------------------------------------------------- */
+char* strrchr(const char* str, int c);
+
+/* ----------------------------------------------------------------------------
  * strstr - Find first occurrence of substring in string
  * @return: Pointer to substring, or NULL if not found
  * ---------------------------------------------------------------------------- */

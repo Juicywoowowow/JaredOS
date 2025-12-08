@@ -63,6 +63,7 @@ static const command_t commands[] = {
     {"cat",      "Print file content",                cmd_cat},
     {"rm",       "Delete file",                       cmd_rm},
     {"edit",     "Open text editor",                  cmd_edit},
+    {"write",    "Write to file: write file (1:text)", cmd_write},
     {NULL, NULL, NULL}  /* Terminator */
 };
 
@@ -533,6 +534,155 @@ void cmd_edit(int argc, char* argv[]) {
     }
     
     editor_open(argv[1]);
+}
+
+/* ----------------------------------------------------------------------------
+ * cmd_write - Write text to file with line numbers
+ *
+ * Usage: write filename (1:hello world\n2:line two)
+ *
+ * Format inside parentheses:
+ *   LINE_NUM:TEXT - Sets content for that line
+ *   \n           - Separates line entries
+ *
+ * If file exists, specified lines are overwritten. Other lines preserved.
+ * If file doesn't exist, it's created.
+ * ---------------------------------------------------------------------------- */
+void cmd_write(int argc, char* argv[]) {
+    static char file_buffer[512];
+    static char new_buffer[512];
+    char* lines[64];   /* Pointers to each line in file_buffer */
+    int line_count = 0;
+    int i;
+    
+    if (argc < 3) {
+        vga_set_color(VGA_COLOR_LIGHT_BROWN, VGA_COLOR_BLACK);
+        vga_print("Usage: write <filename> (1:text\\n2:more text)\n");
+        vga_print("Example: write test.txt (1:hello world\\n2:second line)\n");
+        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+        return;
+    }
+    
+    const char* filename = argv[1];
+    
+    /* Reconstruct the content part from remaining args */
+    char content[256];
+    content[0] = '\0';
+    for (i = 2; i < argc; i++) {
+        strcat(content, argv[i]);
+        if (i < argc - 1) strcat(content, " ");
+    }
+    
+    /* Initialize buffers */
+    memset(file_buffer, 0, sizeof(file_buffer));
+    memset(new_buffer, 0, sizeof(new_buffer));
+    for (i = 0; i < 64; i++) lines[i] = NULL;
+    
+    /* Load existing file content if it exists */
+    if (fs_exists(filename)) {
+        uint32_t size = fs_get_size(filename);
+        if (size > 0 && size < 512) {
+            fs_read_file(filename, (uint8_t*)file_buffer);
+            file_buffer[size] = '\0';
+            
+            /* Parse existing lines */
+            char* p = file_buffer;
+            lines[0] = p;
+            line_count = 1;
+            
+            while (*p && line_count < 64) {
+                if (*p == '\n') {
+                    *p = '\0';
+                    if (*(p + 1)) {
+                        lines[line_count++] = p + 1;
+                    }
+                }
+                p++;
+            }
+        }
+    }
+    
+    /* Find opening parenthesis */
+    char* start = strchr(content, '(');
+    if (!start) {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_print("Error: Missing opening parenthesis\n");
+        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+        return;
+    }
+    start++; /* Skip '(' */
+    
+    /* Remove closing parenthesis if present */
+    char* end = strrchr(start, ')');
+    if (end) *end = '\0';
+    
+    /* Parse line entries separated by \n (literal backslash-n in input) */
+    char* entry = start;
+    while (entry && *entry) {
+        /* Find next \n separator */
+        char* next = entry;
+        while (*next) {
+            if (*next == '\\' && *(next + 1) == 'n') {
+                *next = '\0';
+                next += 2;
+                break;
+            }
+            next++;
+        }
+        if (*next == '\0') next = NULL;
+        
+        /* Parse line_num:content */
+        char* colon = strchr(entry, ':');
+        if (colon) {
+            *colon = '\0';
+            int line_num = atoi(entry);
+            char* text = colon + 1;
+            
+            if (line_num >= 1 && line_num <= 64) {
+                /* Ensure we have enough lines */
+                while (line_count < line_num) {
+                    lines[line_count++] = "";
+                }
+                /* Set this line (store in new_buffer) */
+                static char line_storage[64][64];
+                strncpy(line_storage[line_num - 1], text, 63);
+                line_storage[line_num - 1][63] = '\0';
+                lines[line_num - 1] = line_storage[line_num - 1];
+            }
+        }
+        
+        entry = next;
+    }
+    
+    /* Rebuild file content */
+    new_buffer[0] = '\0';
+    for (i = 0; i < line_count; i++) {
+        if (lines[i]) {
+            strcat(new_buffer, lines[i]);
+        }
+        if (i < line_count - 1) {
+            strcat(new_buffer, "\n");
+        }
+    }
+    
+    /* Write to file */
+    if (fs_exists(filename)) {
+        fs_delete(filename);
+    }
+    
+    if (fs_create(filename)) {
+        int len = strlen(new_buffer);
+        fs_write_file(filename, (uint8_t*)new_buffer, len);
+        vga_set_color(VGA_COLOR_LIGHT_GREEN, VGA_COLOR_BLACK);
+        vga_print("Written to ");
+        vga_print(filename);
+        vga_print("\n");
+        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    } else {
+        vga_set_color(VGA_COLOR_LIGHT_RED, VGA_COLOR_BLACK);
+        vga_print("Error: Could not write to file\n");
+        vga_set_color(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK);
+    }
 }
 
 /* ----------------------------------------------------------------------------
