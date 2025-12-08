@@ -1,1 +1,0 @@
-/usr/bin/c++  -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names CMakeFiles/cu.dir/src/main.cpp.o CMakeFiles/cu.dir/src/lexer.cpp.o CMakeFiles/cu.dir/src/parser.cpp.o CMakeFiles/cu.dir/src/codegen.cpp.o -o cu
